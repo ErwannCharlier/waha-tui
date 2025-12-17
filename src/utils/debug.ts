@@ -1,0 +1,70 @@
+/**
+ * Debug logging utility for waha-tui
+ *
+ * Enable debug logging via:
+ * - CLI flag: waha-tui --debug or -d
+ * - Environment variable: WAHA_TUI_DEBUG=1 bun dev
+ */
+
+import { appendFileSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
+import { homedir } from "node:os"
+
+// Check CLI args for --debug flag
+const hasDebugFlag = process.argv.includes("--debug") || process.argv.includes("-d")
+const hasEnvDebug = process.env.WAHA_TUI_DEBUG === "1" || process.env.WAHA_TUI_DEBUG === "true"
+
+export const DEBUG_ENABLED = hasDebugFlag || hasEnvDebug
+
+// Save debug log to ~/.waha-tui/ like other config files
+const wahaTuiDir = join(homedir(), ".waha-tui")
+const logFile = join(wahaTuiDir, "debug.log")
+
+/**
+ * Initialize debug mode - clears old log file
+ */
+export function initDebug(): void {
+  if (!DEBUG_ENABLED) return
+  try {
+    writeFileSync(logFile, `=== waha-tui Debug Log - ${new Date().toISOString()} ===\n`)
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * Log a debug message to debug.log file if debug mode is enabled
+ */
+export function debugLog(category: string, message: string): void {
+  if (!DEBUG_ENABLED) return
+
+  const timestamp = new Date().toISOString()
+  const line = `[${timestamp}] [${category}] ${message}\n`
+  try {
+    appendFileSync(logFile, line)
+  } catch {
+    // Ignore logging errors
+  }
+}
+
+/**
+ * Log API request details for debugging
+ */
+export function debugRequest(method: string, url: string, body?: unknown): void {
+  if (!DEBUG_ENABLED) return
+  debugLog("API", `${method} ${url}`)
+  if (body) {
+    debugLog("API", `Body: ${JSON.stringify(body, null, 2)}`)
+  }
+}
+
+/**
+ * Log API response details for debugging
+ */
+export function debugResponse(status: number, url: string, body?: string): void {
+  if (!DEBUG_ENABLED) return
+  debugLog("API", `Response ${status} from ${url}`)
+  if (body && body.length < 2000) {
+    debugLog("API", `Response Body: ${body}`)
+  }
+}
