@@ -93,8 +93,7 @@ export async function loadChats(sessionName: string): Promise<void> {
     appState.setConnectionStatus("connecting")
     const client = getClient()
 
-    const { data: chats } = await client.chats.chatsControllerGetChats({
-      session: sessionName,
+    const { data: chats } = await client.chats.chatsControllerGetChats(sessionName, {
       limit: 50,
       sortBy: "conversationTimestamp",
       sortOrder: "desc",

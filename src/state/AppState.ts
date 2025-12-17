@@ -3,7 +3,7 @@
  * Global state management for the TUI
  */
 
-export type ViewType = "sessions" | "chats" | "conversation" | "settings"
+export type ViewType = "sessions" | "chats" | "conversation" | "settings" | "qr"
 
 export interface AppState {
   currentView: ViewType
@@ -11,6 +11,7 @@ export interface AppState {
   currentChatId: string | null
   sessions: any[]
   chats: any[]
+  qrCodeMatrix: any | null
   messages: Map<string, any[]>
   connectionStatus: "connected" | "connecting" | "disconnected" | "error"
   errorMessage: string | null
@@ -23,6 +24,7 @@ class StateManager {
     currentChatId: null,
     sessions: [],
     chats: [],
+    qrCodeMatrix: null,
     messages: new Map(),
     connectionStatus: "disconnected",
     errorMessage: null,

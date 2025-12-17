@@ -31,17 +31,17 @@
     "messaging"
   ],
   "scripts": {
-    "dev": "bun run src/index.ts",
-    "dev:debug": "bun run dev --debug",
+    "dev": "bun --watch src/index.ts",
+    "dev:debug": "bun dev --debug",
     "build": "bun build src/index.ts --compile --outfile waha-tui",
     "typecheck": "bun x tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
-    "check": "bun run typecheck && bun run lint && bun run format:check",
-    "fix": "bun run lint:fix && bun run format",
-    "start": "bun run src/index.ts",
+    "check": "bun typecheck && bun lint && bun format:check",
+    "fix": "bun lint:fix && bun format",
+    "start": "bun src/index.ts",
     "link:waha-node": "bash scripts/link-waha-node.sh",
     "unlink:waha-node": "bash scripts/unlink-waha-node.sh"
   },
@@ -49,6 +49,7 @@
     "@eslint/js": "^9.39.2",
     "@types/bun": "latest",
     "@types/node": "^25.0.3",
+    "@types/qrcode": "^1.5.6",
     "eslint": "^9.39.2",
     "jiti": "^2.6.1",
     "prettier": "^3.7.4",
@@ -59,7 +60,8 @@
   },
   "dependencies": {
     "@muhammedaksam/waha-node": "../waha-node",
-    "@opentui/core": "^0.1.61"
+    "@opentui/core": "^0.1.61",
+    "qrcode": "^1.5.4"
   },
   "engines": {
     "bun": ">=1.0"

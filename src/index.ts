@@ -18,6 +18,7 @@ import { StatusBar } from "./components/StatusBar"
 import { SessionsView, loadSessions } from "./views/SessionsView"
 import { ChatsView, loadChats } from "./views/ChatsView"
 import { createNewSession } from "./views/SessionCreate"
+import { QRCodeView } from "./views/QRCodeView"
 import type { WahaTuiConfig } from "./config/schema"
 import { initDebug, debugLog } from "./utils/debug"
 
@@ -153,7 +154,9 @@ async function main() {
             ? SessionsView()
             : state.currentView === "chats"
               ? ChatsView()
-              : Text({ content: `View: ${state.currentView} (Coming soon)` })
+              : state.currentView === "qr"
+                ? QRCodeView()
+                : Text({ content: `View: ${state.currentView} (Coming soon)` })
         ),
 
         // Footer with shortcuts
@@ -202,7 +205,8 @@ async function main() {
     if (keyStr === "n") {
       const state = appState.getState()
       if (state.currentView === "sessions") {
-        await createNewSession()
+        // Create session with default name - user can customize later
+        await createNewSession("default")
         await loadSessions() // Refresh to show new session
       }
     }
