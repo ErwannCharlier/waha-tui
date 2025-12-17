@@ -7,6 +7,7 @@ import { Box, Text } from "@opentui/core"
 import { appState } from "../state/AppState"
 import { getQRCode } from "../utils/qr"
 import QRCode from "qrcode"
+import type { QRCode as QRCodeType } from "qrcode"
 
 /**
  * QR Code View Component
@@ -98,13 +99,13 @@ export async function showQRCode(sessionName: string): Promise<void> {
     }
 
     // Generate QR matrix
-    const matrix = await QRCode.create(qrValue, { errorCorrectionLevel: "M" })
+    const matrix: QRCodeType = QRCode.create(qrValue, { errorCorrectionLevel: "M" })
 
     // Store in app state
     appState.setState({
       ...appState.getState(),
       qrCodeMatrix: matrix,
-      currentView: "qr" as any,
+      currentView: "qr",
     })
   } catch (error) {
     console.error("Failed to load QR code:", error)

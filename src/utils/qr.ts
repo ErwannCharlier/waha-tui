@@ -13,7 +13,7 @@ export async function getQRCode(sessionName: string): Promise<string | null> {
     debugLog("QR", `Fetching QR code for session: ${sessionName}`)
     const client = getClient()
 
-    const { data } = await client.auth.authControllerGetQr(sessionName as any, {
+    const { data } = await client.auth.authControllerGetQr(sessionName, {
       format: "raw",
     })
 
@@ -24,8 +24,8 @@ export async function getQRCode(sessionName: string): Promise<string | null> {
 
     debugLog("QR", `No QR value in response for ${sessionName}`)
     return null
-  } catch (error: any) {
-    debugLog("QR", `Failed to fetch QR code: ${error.message}`)
+  } catch (error) {
+    debugLog("QR", `Failed to fetch QR code: ${error}`)
     return null
   }
 }

@@ -3,16 +3,19 @@
  * Global state management for the TUI
  */
 
+import type { SessionDTO, ChatSummary, WAMessage } from "@muhammedaksam/waha-node"
+
 export type ViewType = "sessions" | "chats" | "conversation" | "settings" | "qr"
 
 export interface AppState {
   currentView: ViewType
   currentSession: string | null
   currentChatId: string | null
-  sessions: any[]
-  chats: any[]
-  qrCodeMatrix: any | null
-  messages: Map<string, any[]>
+  sessions: SessionDTO[]
+  chats: ChatSummary[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  qrCodeMatrix: any | null // QRCode type from qrcode library
+  messages: Map<string, WAMessage[]>
   connectionStatus: "connected" | "connecting" | "disconnected" | "error"
   errorMessage: string | null
 }
@@ -72,21 +75,21 @@ class StateManager {
     this.setState({ currentChatId: chatId, currentView: chatId ? "conversation" : "chats" })
   }
 
-  setSessions(sessions: any[]): void {
+  setSessions(sessions: SessionDTO[]): void {
     this.setState({ sessions })
   }
 
-  setChats(chats: any[]): void {
+  setChats(chats: ChatSummary[]): void {
     this.setState({ chats })
   }
 
-  setMessages(chatId: string, messages: any[]): void {
+  setMessages(chatId: string, messages: WAMessage[]): void {
     const messagesMap = new Map(this.state.messages)
     messagesMap.set(chatId, messages)
     this.setState({ messages: messagesMap })
   }
 
-  addMessage(chatId: string, message: any): void {
+  addMessage(chatId: string, message: WAMessage): void {
     const messagesMap = new Map(this.state.messages)
     const existing = messagesMap.get(chatId) || []
     messagesMap.set(chatId, [...existing, message])

@@ -19,13 +19,13 @@ export async function createNewSession(sessionName: string = "default"): Promise
 
     // First, check if session already exists
     try {
-      const { data: existingSession } = await client.sessions.sessionsControllerGet(name as any)
+      const { data: existingSession } = await client.sessions.sessionsControllerGet(name)
       debugLog("Session", `Session ${name} already exists with status: ${existingSession.status}`)
 
       // Session exists - check its status
       if (existingSession.status === "STOPPED") {
         console.log(`   Session exists but is stopped. Starting it...`)
-        await client.sessions.sessionsControllerStart(name as any)
+        await client.sessions.sessionsControllerStart(name)
         console.log(`✅ Session started: ${name}`)
       } else if (existingSession.status === "SCAN_QR_CODE") {
         console.log(`✅ Session exists and needs QR scan`)
@@ -39,13 +39,9 @@ export async function createNewSession(sessionName: string = "default"): Promise
 
       appState.setCurrentSession(name)
       return
-    } catch (getError: any) {
+    } catch (error) {
       // Session doesn't exist (404) - continue to create it
-      if (getError.response?.status !== 404) {
-        // Some other error - throw it
-        throw getError
-      }
-      debugLog("Session", `Session ${name} doesn't exist, creating new one`)
+      debugLog("Session", `Session ${name} doesn't exist, creating new one: ${error}`)
     }
 
     // Create new session
@@ -66,15 +62,7 @@ export async function createNewSession(sessionName: string = "default"): Promise
 
     // Set as current session
     appState.setCurrentSession(name)
-  } catch (error: any) {
-    const errorDetails = error.response?.data
-      ? JSON.stringify(error.response.data, null, 2)
-      : error.message
+  } catch (error) {
     debugLog("Session", `Failed to create session: ${error}`)
-    debugLog("Session", `Error details: ${errorDetails}`)
-    console.error(`\n❌ Failed to create session: ${error.message}`)
-    if (error.response?.data) {
-      console.error(`   Details: ${JSON.stringify(error.response.data, null, 2)}\n`)
-    }
   }
 }

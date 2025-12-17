@@ -6,7 +6,7 @@
 import { Box, Text, TextAttributes } from "@opentui/core"
 import { appState } from "../state/AppState"
 import { getClient } from "../client"
-import { formatRelativeTime, truncate } from "../utils/formatters"
+import { truncate } from "../utils/formatters"
 import { debugLog } from "../utils/debug"
 
 export function ChatsView() {
@@ -36,10 +36,8 @@ export function ChatsView() {
     // Chat list
     ...state.chats.map((chat) => {
       const isSelected = state.currentChatId === chat.id
-      const lastMessage = chat.lastMessage?.body || "No messages"
-      const timestamp = chat.conversationTimestamp
-        ? formatRelativeTime(chat.conversationTimestamp)
-        : ""
+      const lastMessage = "No messages"
+      const timestamp = ""
 
       return Box(
         { flexDirection: "column", paddingLeft: 1, paddingBottom: 1 },

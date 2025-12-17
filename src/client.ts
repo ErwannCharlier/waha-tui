@@ -6,7 +6,7 @@
 import { WahaClient } from "@muhammedaksam/waha-node"
 import type { WahaTuiConfig } from "./config/schema"
 import { debugLog, debugRequest, debugResponse, DEBUG_ENABLED } from "./utils/debug"
-import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from "axios"
+import type { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from "axios"
 
 let client: WahaClient | null = null
 
