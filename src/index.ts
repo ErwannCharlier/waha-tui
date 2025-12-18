@@ -15,7 +15,7 @@ import { validateConfig } from "./config/schema"
 import { initializeClient, testConnection } from "./client"
 import { appState } from "./state/AppState"
 import { Footer } from "./components/Footer"
-import { SessionsView } from "./views/SessionsView"
+import { deleteSession, logoutSession, SessionsView } from "./views/SessionsView"
 import { loadSessions } from "./views/SessionsView"
 import { loadChats } from "./views/ChatsView"
 import {
@@ -128,20 +128,43 @@ async function main() {
   // Initialize WAHA client
   initializeClient(config)
 
+  // Fetch WAHA version and tier info
+  try {
+    const client = (await import("./client")).getClient()
+    const { data: versionInfo } = await client.observability.versionControllerGet()
+    if (versionInfo?.tier) {
+      appState.setState({ wahaTier: versionInfo.tier })
+      debugLog("App", `WAHA tier: ${versionInfo.tier}, version: ${versionInfo.version}`)
+    }
+  } catch (error) {
+    debugLog("App", `Failed to fetch WAHA version: ${error}`)
+  }
+
   // Load initial sessions
   await loadSessions()
 
-  // Auto-switch to chats view if we have a working session
+  // Default session name for free WAHA users
+  const DEFAULT_SESSION = "default"
+
+  // Check if we have a working session
   const state = appState.getState()
-  if (state.sessions.length > 0) {
-    const workingSession = state.sessions.find((s) => s.status === "WORKING")
-    if (workingSession) {
-      debugLog("App", `Found working session: ${workingSession.name}, switching to chats view`)
-      appState.setCurrentSession(workingSession.name)
-      appState.setCurrentView("chats")
-      await loadChats(workingSession.name)
-      pollingService.start(workingSession.name)
-    }
+  const workingSession = state.sessions.find((s) => s.status === "WORKING")
+
+  if (workingSession) {
+    // Session is already working, go directly to chats
+    debugLog("App", `Found working session: ${workingSession.name}, switching to chats view`)
+    appState.setCurrentSession(workingSession.name)
+    appState.setCurrentView("chats")
+    await loadChats(workingSession.name)
+    pollingService.start(workingSession.name)
+  } else {
+    // No working session - show QR view for login
+    debugLog("App", `No working session, showing QR login with session: ${DEFAULT_SESSION}`)
+    appState.setCurrentSession(DEFAULT_SESSION)
+    appState.setCurrentView("qr")
+    // Trigger QR code loading
+    const { showQRCode } = await import("./views/QRCodeView")
+    await showQRCode(DEFAULT_SESSION)
   }
 
   // Create renderer
@@ -237,6 +260,19 @@ async function main() {
         await loadSessions()
       } else if (state.currentView === "chats" && state.currentSession) {
         await loadChats(state.currentSession)
+      }
+    }
+
+    // Quit with 'q' key
+    if (key.name === "q" && !state.inputMode) {
+      if (state.currentView === "sessions") {
+        // Quit the app from sessions view
+        await logoutSession()
+        await deleteSession()
+        // process.exit(0)
+      } else if (state.currentView === "qr") {
+        // Go back to sessions from QR view
+        appState.setCurrentView("sessions")
       }
     }
 

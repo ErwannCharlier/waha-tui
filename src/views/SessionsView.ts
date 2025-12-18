@@ -85,3 +85,57 @@ export async function loadSessions(): Promise<void> {
     appState.setSessions([])
   }
 }
+
+/**
+ * Logout from the current session
+ */
+export async function logoutSession(): Promise<void> {
+  const state = appState.getState()
+  const sessionName = state.currentSession
+
+  if (!sessionName) {
+    debugLog("Session", "No session to logout from")
+    return
+  }
+
+  try {
+    debugLog("Session", `Logging out from session: ${sessionName}`)
+    const client = getClient()
+    await client.sessions.sessionsControllerLogout(sessionName)
+    debugLog("Session", `Successfully logged out from: ${sessionName}`)
+
+    // Clear current session and reload list
+    appState.setCurrentSession(null)
+    appState.setCurrentView("sessions")
+    await loadSessions()
+  } catch (error) {
+    debugLog("Session", `Failed to logout: ${error}`)
+  }
+}
+
+/**
+ * Delete the current session completely
+ */
+export async function deleteSession(): Promise<void> {
+  const state = appState.getState()
+  const sessionName = state.currentSession
+
+  if (!sessionName) {
+    debugLog("Session", "No session to delete")
+    return
+  }
+
+  try {
+    debugLog("Session", `Deleting session: ${sessionName}`)
+    const client = getClient()
+    await client.sessions.sessionsControllerDelete(sessionName)
+    debugLog("Session", `Successfully deleted: ${sessionName}`)
+
+    // Clear current session and reload list
+    appState.setCurrentSession(null)
+    appState.setCurrentView("sessions")
+    await loadSessions()
+  } catch (error) {
+    debugLog("Session", `Failed to delete session: ${error}`)
+  }
+}

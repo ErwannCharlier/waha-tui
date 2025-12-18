@@ -181,6 +181,9 @@ export const WhatsAppTheme = {
   greenDark: "#005c4b", // Sent message bubble
   blue: "#53bdeb", // Links, active states
 
+  // Page background
+  background: "#0b141a", // Deep dark background
+
   // Message bubbles
   sentBubble: "#005c4b",
   receivedBubble: "#202c33",
@@ -230,6 +233,16 @@ export const Icons = {
   checkDouble: "✓✓",
   online: "●",
   typing: "...",
+
+  // WhatsApp branding
+  whatsapp: "📱",
+  lock: "🔒",
+
+  // Circled numbers for steps
+  circled1: "①",
+  circled2: "②",
+  circled3: "③",
+  circled4: "④",
 } as const
 
 export const BoxChars = {

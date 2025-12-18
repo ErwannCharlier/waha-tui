@@ -35,7 +35,7 @@ export function WelcomeView() {
         {
           marginBottom: 2,
         },
-        Logo()
+        Logo({})
       ),
 
       // Description text

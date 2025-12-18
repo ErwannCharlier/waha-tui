@@ -36,6 +36,7 @@ export interface AppState {
   currentChatPresence: WAHAChatPresences | null
   currentChatParticipants: GroupParticipant[] | null
   myProfile: MyProfile | null // Current user's profile (id, name, picture)
+  wahaTier: string | null // WAHA tier ("PLUS", "CORE", etc.)
 
   // UI State for WhatsApp-style layout
   activeFilter: ActiveFilter
@@ -75,6 +76,7 @@ class StateManager {
     currentChatPresence: null,
     currentChatParticipants: null,
     myProfile: null,
+    wahaTier: null,
 
     // UI State
     activeFilter: "all",
