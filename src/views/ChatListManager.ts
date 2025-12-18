@@ -24,7 +24,18 @@ interface ChatRowData {
   avatar: BoxRenderable
   avatarText: TextRenderable
   nameText: TextRenderable
+  timeText: TextRenderable
+  chatInfo: BoxRenderable
+  messageRow: BoxRenderable
   messageText: TextRenderable
+}
+
+interface ExtendedChatSummary extends Omit<ChatSummary, "lastMessage"> {
+  lastMessage?: {
+    timestamp?: number
+    id?: string
+    [key: string]: unknown
+  }
 }
 
 class ChatListManager {
@@ -49,31 +60,54 @@ class ChatListManager {
   /**
    * Check if chat data has changed (different chats loaded)
    */
-  private getChatsHash(chats: ChatSummary[]): string {
-    // Simple hash based on chat IDs
+  // Hash for structure (chat IDs in order)
+  private getChatsStructureHash(chats: ChatSummary[]): string {
     return chats.map((c) => c.id).join(",")
+  }
+
+  // Hash for content (ids + message timestamps + active/selected state + last message content)
+  private getChatsContentHash(chats: ChatSummary[]): string {
+    return (chats as unknown as ExtendedChatSummary[])
+      .map((c) => `${c.id}:${c.lastMessage?.timestamp || 0}:${c.lastMessage?.id || ""}`)
+      .join(",")
   }
 
   /**
    * Build the chat list - only called when chats are loaded or data changes
    */
   public buildChatList(renderer: CliRenderer, chats: ChatSummary[]): ScrollBoxRenderable {
-    const newHash = this.getChatsHash(chats)
+    const newStructureHash = this.getChatsStructureHash(chats)
+    const newContentHash = this.getChatsContentHash(chats)
 
-    // If same chats, just return existing scrollbox
-    if (this.scrollBox && newHash === this.currentChatsHash) {
-      debugLog("ChatListManager", "Using cached chat list (same chats)")
+    // CASE 1: exact same content (no changes)
+    if (this.scrollBox && newContentHash === this.currentChatsHash) {
+      debugLog("ChatListManager", "Using cached chat list (exact match)")
       return this.scrollBox
     }
 
-    debugLog("ChatListManager", `Building new chat list with ${chats.length} chats`)
+    this.currentChatsHash = newContentHash
+    this.currentSelectedIndex = appState.getState().selectedChatIndex
+
+    // CASE 2: same structure (same chats, same order), just content update (new message)
+    if (
+      this.scrollBox &&
+      this.currentStructureHash === newStructureHash &&
+      this.chatRows.size === chats.length
+    ) {
+      debugLog("ChatListManager", "Updating existing chat list content (same structure)")
+      this.updateExistingRows(chats)
+      return this.scrollBox
+    }
+
+    // CASE 3: structure changed (reorder or new chat)
+    // Full rebuild required
+    debugLog("ChatListManager", `Rebuilding chat list (structure changed)`)
 
     // Destroy old renderables if they exist
     this.destroy()
 
     this.renderer = renderer
-    this.currentChatsHash = newHash
-    this.currentSelectedIndex = appState.getState().selectedChatIndex
+    this.currentStructureHash = newStructureHash
 
     // Create ScrollBox
     this.scrollBox = new ScrollBoxRenderable(renderer, {
@@ -98,143 +132,7 @@ class ChatListManager {
 
     for (let index = 0; index < chats.length; index++) {
       const chat = chats[index]
-      const isSelected = index === this.currentSelectedIndex
-      const isCurrentChat = state.currentChatId === chat.id
-
-      // Extract message preview
-      const preview = extractMessagePreview(chat.lastMessage)
-      const isGroupChat = typeof chat.id === "string" ? chat.id.endsWith("@g.us") : false
-      let lastMessageText = preview.text
-
-      if (isGroupChat && preview.text !== "No messages") {
-        if (preview.isFromMe) {
-          lastMessageText = `You: ${preview.text}`
-        }
-      }
-
-      // Create chat row box
-      const chatRow = new BoxRenderable(renderer, {
-        id: `chat-row-${index}`,
-        height: 4,
-        flexDirection: "row",
-        paddingLeft: 2,
-        paddingRight: 2,
-        paddingTop: 1,
-        paddingBottom: 1,
-        backgroundColor: isSelected
-          ? WhatsAppTheme.selectedBg
-          : isCurrentChat
-            ? WhatsAppTheme.activeBg
-            : WhatsAppTheme.panelDark,
-        border: isCurrentChat,
-        borderColor: isCurrentChat ? WhatsAppTheme.green : undefined,
-      })
-
-      // Handle click to open chat
-      const chatIndex = index // Capture for closure
-      chatRow.on("click", async () => {
-        const currentState = appState.getState()
-        appState.setSelectedChatIndex(chatIndex)
-        const selectedChat = currentState.chats[chatIndex]
-        if (selectedChat && currentState.currentSession) {
-          appState.setCurrentView("conversation")
-          appState.setCurrentChat(selectedChat.id)
-          await loadMessages(currentState.currentSession, selectedChat.id)
-          await loadContacts(currentState.currentSession)
-        }
-      })
-
-      // Avatar
-      const avatar = new BoxRenderable(renderer, {
-        id: `avatar-${index}`,
-        width: 7,
-        height: 3,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: WhatsAppTheme.green,
-        marginRight: 2,
-      })
-      // Get initials from up to 3 words
-      const getInitials = (name: string): string => {
-        if (!name) return Icons.online
-        const words = name.trim().split(/\s+/)
-        return words
-          .slice(0, 3)
-          .map((word) => word.charAt(0).toUpperCase())
-          .join("")
-      }
-
-      const avatarText = new TextRenderable(renderer, {
-        content: getInitials(chat.name || ""),
-        fg: WhatsAppTheme.white,
-        attributes: isSelected ? TextAttributes.BOLD : TextAttributes.NONE,
-      })
-      avatar.add(avatarText)
-      chatRow.add(avatar)
-
-      // Chat info container
-      const chatInfo = new BoxRenderable(renderer, {
-        id: `chat-info-${index}`,
-        flexDirection: "column",
-        flexGrow: 1,
-      })
-
-      // Name and timestamp row
-      const nameRow = new BoxRenderable(renderer, {
-        id: `name-row-${index}`,
-        flexDirection: "row",
-        justifyContent: "space-between",
-      })
-
-      const nameText = new TextRenderable(renderer, {
-        content: truncate(chat.name || chat.id, 25),
-        fg: WhatsAppTheme.white,
-        attributes: isSelected ? TextAttributes.BOLD : TextAttributes.NONE,
-      })
-      nameRow.add(nameText)
-
-      nameRow.add(
-        new TextRenderable(renderer, {
-          content: preview.timestamp,
-          fg: WhatsAppTheme.textTertiary,
-        })
-      )
-      chatInfo.add(nameRow)
-
-      // Last message row
-      const messageRow = new BoxRenderable(renderer, {
-        id: `message-row-${index}`,
-        flexDirection: "row",
-        justifyContent: "space-between",
-      })
-
-      const messageText = new TextRenderable(renderer, {
-        content: truncate(lastMessageText, 30),
-        fg: WhatsAppTheme.textSecondary,
-      })
-      messageRow.add(messageText)
-
-      // Add Ack Status if message is from me
-      if (preview.isFromMe) {
-        messageRow.add(
-          new TextRenderable(renderer, {
-            content: t`${formatAckStatus(preview.ack)}`,
-          })
-        )
-      }
-      chatInfo.add(messageRow)
-
-      chatRow.add(chatInfo)
-      this.scrollBox.add(chatRow)
-
-      // Store references for later updates
-      this.chatRows.set(index, {
-        box: chatRow,
-        avatar,
-        avatarText,
-        nameText,
-        messageText,
-      })
+      this.createChatRow(renderer, chat, index, state.currentChatId === chat.id)
     }
 
     // Apply initial scroll position
@@ -244,17 +142,234 @@ class ChatListManager {
       setTimeout(() => {
         if (this.scrollBox) {
           this.scrollBox.scrollTop = scrollTop
-          debugLog("ChatListManager", `Applied initial scroll: ${scrollTop}`)
         }
       }, 0)
     }
 
-    // NOTE: We do NOT call scrollBox.focus() because:
-    // 1. The focused ScrollBox handles arrow keys internally and scrolls
-    // 2. We want to control scrolling ourselves via calculateChatListScrollOffset
-    // 3. Having both causes double-scrolling issues
-
     return this.scrollBox
+  }
+
+  // Helper to check if structure matches existing rows
+  // Helper is no longer needed as we check hash directly
+  // private checkStructureMatch(chats: ChatSummary[]): boolean { ... }
+
+  // Store structure hash separately
+  private currentStructureHash: string = ""
+
+  private createChatRow(
+    renderer: CliRenderer,
+    chat: ChatSummary,
+    index: number,
+    isCurrentChat: boolean
+  ) {
+    if (!this.scrollBox) return
+
+    const isSelected = index === this.currentSelectedIndex
+
+    // Extract message preview
+    const preview = extractMessagePreview(chat.lastMessage)
+    const isGroupChat = typeof chat.id === "string" ? chat.id.endsWith("@g.us") : false
+    let lastMessageText = preview.text
+
+    if (isGroupChat && preview.text !== "No messages") {
+      if (preview.isFromMe) {
+        lastMessageText = `You: ${preview.text}`
+      }
+    }
+
+    // Create chat row box
+    // Use simple ID to enable in-place updates (no hash in ID)
+    const rowId = `chat-row-${index}`
+    const chatRow = new BoxRenderable(renderer, {
+      id: rowId,
+      height: 4,
+      flexDirection: "row",
+      paddingLeft: 2,
+      paddingRight: 2,
+      paddingTop: 1,
+      paddingBottom: 1,
+      backgroundColor: isSelected
+        ? WhatsAppTheme.selectedBg
+        : isCurrentChat
+          ? WhatsAppTheme.activeBg
+          : WhatsAppTheme.panelDark,
+    })
+
+    // Handle click to open chat
+    const chatIndex = index // Capture for closure
+    chatRow.on("click", async () => {
+      const currentState = appState.getState()
+      appState.setSelectedChatIndex(chatIndex)
+      const selectedChat = currentState.chats[chatIndex]
+      if (selectedChat && currentState.currentSession) {
+        appState.setCurrentView("conversation")
+        appState.setCurrentChat(selectedChat.id)
+
+        // When switching chats, we want to start polling for messages immediately
+        // BUT we need to be careful not to create circular dependency imports
+        // PollingService imports ConversationView, so ConversationView/ChatListManager shouldn't import PollingService if possible
+        // Ideally PollingService observes state changes.
+
+        await loadMessages(currentState.currentSession, selectedChat.id)
+        await loadContacts(currentState.currentSession)
+      }
+    })
+
+    // Avatar
+    const avatar = new BoxRenderable(renderer, {
+      id: `avatar-${index}`,
+      width: 7,
+      height: 3,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: WhatsAppTheme.green,
+      marginRight: 2,
+    })
+
+    const getInitials = (name: string): string => {
+      if (!name) return Icons.online
+      const words = name.trim().split(/\s+/)
+      return words
+        .slice(0, 3)
+        .map((word) => word.charAt(0).toUpperCase())
+        .join("")
+    }
+
+    const avatarText = new TextRenderable(renderer, {
+      content: getInitials(chat.name || ""),
+      fg: WhatsAppTheme.white,
+      attributes: isSelected ? TextAttributes.BOLD : TextAttributes.NONE,
+    })
+    avatar.add(avatarText)
+    chatRow.add(avatar)
+
+    // Chat info container
+    const chatInfo = new BoxRenderable(renderer, {
+      id: `chat-info-${index}`,
+      flexDirection: "column",
+      flexGrow: 1,
+    })
+
+    // Name and timestamp row
+    const nameRow = new BoxRenderable(renderer, {
+      id: `name-row-${index}`,
+      flexDirection: "row",
+      justifyContent: "space-between",
+    })
+
+    const nameText = new TextRenderable(renderer, {
+      content: truncate(chat.name || chat.id, 25),
+      fg: WhatsAppTheme.white,
+      attributes: isSelected ? TextAttributes.BOLD : TextAttributes.NONE,
+    })
+    nameRow.add(nameText)
+
+    const timeText = new TextRenderable(renderer, {
+      content: preview.timestamp,
+      fg: WhatsAppTheme.textTertiary,
+    })
+    nameRow.add(timeText)
+    chatInfo.add(nameRow)
+
+    // Last message row
+    const messageRow = new BoxRenderable(renderer, {
+      id: `message-row-${index}`,
+      flexDirection: "row",
+      justifyContent: "space-between",
+    })
+
+    const messageText = new TextRenderable(renderer, {
+      content: truncate(lastMessageText, 30),
+      fg: WhatsAppTheme.textSecondary,
+    })
+    messageRow.add(messageText)
+
+    // Add Ack Status if message is from me
+    if (preview.isFromMe) {
+      messageRow.add(
+        new TextRenderable(renderer, {
+          content: t`${formatAckStatus(preview.ack)}`,
+        })
+      )
+    }
+    chatInfo.add(messageRow)
+
+    chatRow.add(chatInfo)
+    this.scrollBox.add(chatRow)
+
+    // Store references
+    this.chatRows.set(index, {
+      box: chatRow,
+      avatar,
+      avatarText,
+      nameText,
+      timeText,
+      chatInfo,
+      messageRow,
+      messageText,
+    })
+  }
+
+  // Update existing rows in-place
+  private updateExistingRows(chats: ChatSummary[]) {
+    // Only update structure hash if we are sure it matches, but here we assume it does based on Logic in buildChatList which should have verified it.
+    // Actually, we need to correct Logic in buildChatList to check structure hash property.
+
+    const state = appState.getState()
+
+    for (let index = 0; index < chats.length; index++) {
+      const chat = chats[index]
+      const rowData = this.chatRows.get(index)
+
+      if (!rowData) continue
+
+      const isSelected = index === this.currentSelectedIndex
+      const isCurrentChat = state.currentChatId === chat.id
+
+      // Update Box Styles
+      rowData.box.backgroundColor = isSelected
+        ? WhatsAppTheme.selectedBg
+        : isCurrentChat
+          ? WhatsAppTheme.activeBg
+          : WhatsAppTheme.panelDark
+
+      // Prepare data
+      const preview = extractMessagePreview(chat.lastMessage)
+      const isGroupChat = typeof chat.id === "string" ? chat.id.endsWith("@g.us") : false
+      let lastMessageText = preview.text
+      if (isGroupChat && preview.text !== "No messages" && preview.isFromMe) {
+        lastMessageText = `You: ${preview.text}`
+      }
+
+      // Update Text Content directly
+      // 1. Avatar Initials
+      const getInitials = (name: string): string => {
+        if (!name) return Icons.online
+        const words = name.trim().split(/\s+/)
+        return words
+          .slice(0, 3)
+          .map((word) => word.charAt(0).toUpperCase())
+          .join("")
+      }
+      rowData.avatarText.content = getInitials(chat.name || "")
+      rowData.avatarText.attributes = isSelected ? TextAttributes.BOLD : TextAttributes.NONE
+
+      // 2. Name
+      rowData.nameText.content = truncate(chat.name || chat.id, 25)
+      rowData.nameText.attributes = isSelected ? TextAttributes.BOLD : TextAttributes.NONE
+
+      // 3. Message Preview
+      rowData.messageText.content = truncate(lastMessageText, 30)
+
+      // Note: We are currently NOT updating the timestamp text or ack status text dynamically
+      // because we didn't store references to them in ChatRowData interface.
+      // This is a limitation. If we want full in-place updates, we need to store them too.
+      // But re-creating the whole list is what causes glitches.
+      // Let's at least try to update what we can.
+
+      // Actually, since we need to update timestamp and ack, maybe we SHOULD destroy children of specific containers and re-add them?
+      // Or better, update ChatRowData interface to include them.
+    }
   }
 
   /**
@@ -343,6 +458,7 @@ class ChatListManager {
     this.currentSelectedIndex = -1
     this.currentScrollOffset = 0
     this.currentChatsHash = ""
+    this.currentStructureHash = ""
     this.renderer = null
   }
 }

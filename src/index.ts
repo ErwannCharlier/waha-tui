@@ -31,6 +31,7 @@ import { MainLayout } from "./views/MainLayout"
 import type { WahaTuiConfig } from "./config/schema"
 import { initDebug, debugLog } from "./utils/debug"
 import { calculateChatListScrollOffset } from "./utils/chatListScroll"
+import { pollingService } from "./services/PollingService"
 
 async function promptConfig(): Promise<WahaTuiConfig> {
   console.log("\n📱 Welcome to WAHA TUI!\n")
@@ -137,6 +138,7 @@ async function main() {
       appState.setCurrentSession(workingSession.name)
       appState.setCurrentView("chats")
       await loadChats(workingSession.name)
+      pollingService.start(workingSession.name)
     }
   }
 
@@ -309,6 +311,7 @@ async function main() {
           appState.setCurrentView("chats")
           appState.setSelectedChatIndex(0) // Reset chat selection
           await loadChats(selectedSession.name)
+          pollingService.start(selectedSession.name)
         }
       } else if (state.currentView === "chats" && state.chats.length > 0) {
         const selectedChat = state.chats[state.selectedChatIndex]
