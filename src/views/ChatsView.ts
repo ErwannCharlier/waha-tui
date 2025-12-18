@@ -3,23 +3,15 @@
  * WhatsApp-style chat list with search, filters, and styled rows
  */
 
-import {
-  Box,
-  Text,
-  TextAttributes,
-  BoxRenderable,
-  TextRenderable,
-  ScrollBoxRenderable,
-} from "@opentui/core"
+import { Box, Text, TextAttributes, BoxRenderable, TextRenderable } from "@opentui/core"
 import { appState } from "../state/AppState"
 import { getRenderer } from "../state/RendererContext"
 import { WhatsAppTheme, Icons } from "../config/theme"
-import { truncate, extractMessagePreview } from "../utils/formatters"
 import { debugLog } from "../utils/debug"
 import { getClient } from "../client"
-import { loadMessages, loadContacts } from "./ConversationView"
 import type { ActiveFilter } from "../state/AppState"
 import type { ChatSummary } from "@muhammedaksam/waha-node"
+import { chatListManager } from "./ChatListManager"
 
 export function ChatsView() {
   const state = appState.getState()
@@ -125,8 +117,6 @@ export function ChatsView() {
           paddingLeft: 2,
           paddingRight: 2,
           backgroundColor: isActive ? WhatsAppTheme.green : WhatsAppTheme.receivedBubble,
-          // borderStyle: isActive ? "rounded" : undefined,
-          // borderColor: isActive ? WhatsAppTheme.green : WhatsAppTheme.inputBg,
           alignItems: "center",
           justifyContent: "center",
         },
@@ -160,14 +150,7 @@ export function ChatsView() {
     })
   )
 
-  // Chat Rows - build as renderables for ScrollBox
-  const chatRowsRenderables: BoxRenderable[] = []
-
-  debugLog(
-    "ChatsView",
-    `Building ${state.chats.length} chat rows, selectedIndex: ${state.selectedChatIndex}`
-  )
-
+  // Handle empty state
   if (state.chats.length === 0) {
     debugLog("ChatsView", "No chats found, showing empty state")
     const emptyBox = new BoxRenderable(renderer, {
@@ -182,178 +165,23 @@ export function ChatsView() {
         fg: WhatsAppTheme.textSecondary,
       })
     )
-    chatRowsRenderables.push(emptyBox)
-  } else {
-    for (let index = 0; index < state.chats.length; index++) {
-      const chat = state.chats[index]
-      const isCurrentChat = state.currentChatId === chat.id
-      const isSelected = index === state.selectedChatIndex
 
-      // Extract message preview from lastMessage object
-      const preview = extractMessagePreview(chat.lastMessage)
-
-      // Format last message text with sender prefix for group chats
-      const isGroupChat = typeof chat.id === "string" ? chat.id.endsWith("@g.us") : false
-      let lastMessageText = preview.text
-
-      if (isGroupChat && preview.text !== "No messages") {
-        if (preview.isFromMe) {
-          lastMessageText = `You: ${preview.text}`
-        }
-      }
-
-      // Create chat row box
-      const chatRow = new BoxRenderable(renderer, {
-        id: `chat-row-${index}`,
-        height: 4,
-        flexDirection: "row",
-        paddingLeft: 2,
-        paddingRight: 2,
-        paddingTop: 1,
-        paddingBottom: 1,
-        backgroundColor: isSelected
-          ? WhatsAppTheme.selectedBg
-          : isCurrentChat
-            ? WhatsAppTheme.activeBg
-            : WhatsAppTheme.panelDark,
-        border: isCurrentChat,
-        borderColor: isCurrentChat ? WhatsAppTheme.green : undefined,
-      })
-
-      // Handle focus events to update selection
-      chatRow.on("focus", () => {
-        appState.setSelectedChatIndex(index)
-      })
-
-      // Handle click to open chat
-      chatRow.on("click", async () => {
-        appState.setSelectedChatIndex(index)
-        const selectedChat = state.chats[index]
-        if (selectedChat && state.currentSession) {
-          appState.setCurrentView("conversation")
-          appState.setCurrentChat(selectedChat.id)
-          await loadMessages(state.currentSession, selectedChat.id)
-          await loadContacts(state.currentSession)
-        }
-      })
-
-      // Avatar
-      const avatar = new BoxRenderable(renderer, {
-        id: `avatar-${index}`,
-        width: 3,
-        height: 3,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: WhatsAppTheme.green,
-        marginRight: 2,
-      })
-      avatar.add(
-        new TextRenderable(renderer, {
-          content: chat.name ? chat.name.charAt(0).toUpperCase() : Icons.online,
-          fg: WhatsAppTheme.white,
-          attributes: isSelected ? TextAttributes.BOLD : TextAttributes.NONE,
-        })
-      )
-      chatRow.add(avatar)
-
-      // Chat info container
-      const chatInfo = new BoxRenderable(renderer, {
-        id: `chat-info-${index}`,
+    return Box(
+      {
         flexDirection: "column",
         flexGrow: 1,
-      })
-
-      // Name and timestamp row
-      const nameRow = new BoxRenderable(renderer, {
-        id: `name-row-${index}`,
-        flexDirection: "row",
-        justifyContent: "space-between",
-      })
-      nameRow.add(
-        new TextRenderable(renderer, {
-          content: truncate(chat.name || chat.id, 25),
-          fg: WhatsAppTheme.white,
-          attributes: isSelected ? TextAttributes.BOLD : TextAttributes.NONE,
-        })
-      )
-      nameRow.add(
-        new TextRenderable(renderer, {
-          content: preview.timestamp,
-          fg: WhatsAppTheme.textTertiary,
-        })
-      )
-      chatInfo.add(nameRow)
-
-      // Last message row
-      const messageRow = new BoxRenderable(renderer, {
-        id: `message-row-${index}`,
-        flexDirection: "row",
-        justifyContent: "space-between",
-      })
-      messageRow.add(
-        new TextRenderable(renderer, {
-          content: truncate(lastMessageText, 30),
-          fg: WhatsAppTheme.textSecondary,
-        })
-      )
-      messageRow.add(
-        new TextRenderable(renderer, {
-          content: preview.isFromMe ? Icons.checkDouble : "",
-          fg: WhatsAppTheme.blue,
-        })
-      )
-      chatInfo.add(messageRow)
-
-      chatRow.add(chatInfo)
-      chatRowsRenderables.push(chatRow)
-    }
-  }
-
-  // Constants for scroll calculation
-  const ROW_HEIGHT = 4
-
-  // Use scroll offset from state (calculated in keyboard handler)
-  // Convert item offset to pixel offset
-  const initialScrollTop = state.chatListScrollOffset * ROW_HEIGHT
-
-  debugLog(
-    "ChatsView",
-    `Scroll: selectedIndex=${state.selectedChatIndex}, scrollOffset=${state.chatListScrollOffset}, scrollTop=${initialScrollTop}`
-  )
-
-  // Create ScrollBox for chat list
-  const chatScrollBox = new ScrollBoxRenderable(renderer, {
-    id: "chats-scroll-box",
-    flexGrow: 1,
-    rootOptions: {
-      backgroundColor: WhatsAppTheme.panelDark,
-    },
-    contentOptions: {
-      backgroundColor: WhatsAppTheme.panelDark,
-    },
-    scrollbarOptions: {
-      trackOptions: {
-        backgroundColor: WhatsAppTheme.receivedBubble,
-        foregroundColor: WhatsAppTheme.borderColor,
+        backgroundColor: WhatsAppTheme.panelDark,
       },
-    },
-  })
-
-  // Add chat rows to scroll box
-  for (const chatRow of chatRowsRenderables) {
-    chatScrollBox.add(chatRow)
+      header,
+      searchBar,
+      filterPills,
+      archivedSection,
+      emptyBox
+    )
   }
 
-  // Apply scroll position after layout completes
-  if (initialScrollTop > 0) {
-    setTimeout(() => {
-      chatScrollBox.scrollTop = initialScrollTop
-      debugLog("ChatsView", `Applied scroll: ${initialScrollTop}`)
-    }, 0)
-  }
-
-  // Focus the scroll box to enable keyboard scrolling
-  chatScrollBox.focus()
+  // Use ChatListManager for optimized rendering
+  const chatScrollBox = chatListManager.buildChatList(renderer, state.chats)
 
   return Box(
     {
@@ -365,7 +193,6 @@ export function ChatsView() {
     searchBar,
     filterPills,
     archivedSection,
-    // Chat list (scrollable content)
     chatScrollBox
   )
 }

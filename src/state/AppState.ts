@@ -11,6 +11,9 @@ export type ViewType = "sessions" | "chats" | "conversation" | "settings" | "qr"
 export type ActiveFilter = "all" | "unread" | "favorites" | "groups"
 export type ActiveIcon = "chats" | "status" | "profile" | "settings"
 
+// Type of state change - enables render optimization
+export type ChangeType = "selection" | "scroll" | "data" | "view" | "other"
+
 export interface AppState {
   currentView: ViewType
   currentSession: string | null
@@ -41,6 +44,9 @@ export interface AppState {
 
   // Chat list scroll state (item offset, not pixel offset)
   chatListScrollOffset: number
+
+  // Optimization: track what kind of change occurred
+  lastChangeType: ChangeType
 }
 
 class StateManager {
@@ -73,6 +79,9 @@ class StateManager {
 
     // Chat list scroll state
     chatListScrollOffset: 0,
+
+    // Optimization: track what kind of change
+    lastChangeType: "other",
   }
 
   private listeners: Array<(state: AppState) => void> = []
@@ -106,7 +115,7 @@ class StateManager {
 
   // Helper methods
   setCurrentView(view: ViewType): void {
-    this.setState({ currentView: view })
+    this.setState({ currentView: view, lastChangeType: "view" })
   }
 
   setCurrentSession(sessionName: string | null): void {
@@ -122,7 +131,7 @@ class StateManager {
   }
 
   setChats(chats: ChatSummary[]): void {
-    this.setState({ chats })
+    this.setState({ chats, lastChangeType: "data" })
   }
 
   setMessages(chatId: string, messages: WAMessage[]): void {

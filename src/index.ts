@@ -141,14 +141,37 @@ async function main() {
   const { setRenderer } = await import("./state/RendererContext")
   setRenderer(renderer)
 
+  // Import ChatListManager for optimized rendering
+  const { chatListManager } = await import("./views/ChatListManager")
+
   // Set up reactive rendering
-  function renderApp() {
+  function renderApp(forceRebuild: boolean = false) {
     const state = appState.getState()
+
+    // Optimization: for selection/scroll changes in chat view, only update styles
+    if (
+      !forceRebuild &&
+      state.currentView === "chats" &&
+      state.lastChangeType === "selection" &&
+      chatListManager.hasCachedList()
+    ) {
+      debugLog("Render", "Fast path: updating selection only")
+      chatListManager.updateSelection(state.selectedChatIndex)
+      chatListManager.updateScroll(state.chatListScrollOffset)
+      return
+    }
+
+    debugLog("Render", `Full rebuild: lastChangeType=${state.lastChangeType}`)
 
     // Clear previous render - remove all children
     const children = renderer.root.getChildren()
     for (const child of children) {
       renderer.root.remove(child.id)
+    }
+
+    // Destroy chat list manager when leaving chats view
+    if (state.currentView !== "chats" && state.currentView !== "conversation") {
+      chatListManager.destroy()
     }
 
     // Main layout
@@ -179,8 +202,8 @@ async function main() {
     renderApp()
   })
 
-  // Initial render
-  renderApp()
+  // Initial render (force rebuild)
+  renderApp(true)
 
   // Keyboard handling using OpenTUI's keyInput event system
   renderer.keyInput.on("keypress", async (key: KeyEvent) => {
@@ -228,7 +251,9 @@ async function main() {
         appState.setState({
           selectedChatIndex: newIndex,
           chatListScrollOffset: newScrollOffset,
+          lastChangeType: "selection",
         })
+        return // Prevent ScrollBox from handling this key
       } else if (state.currentView === "conversation" && !state.inputMode) {
         // Scroll up (to older messages)
         const newPos = Math.max(0, state.scrollPosition - 1)
@@ -260,7 +285,9 @@ async function main() {
         appState.setState({
           selectedChatIndex: newIndex,
           chatListScrollOffset: newScrollOffset,
+          lastChangeType: "selection",
         })
+        return // Prevent ScrollBox from handling this key
       } else if (state.currentView === "conversation" && !state.inputMode) {
         // Scroll down (to newer messages)
         debugLog(
@@ -310,6 +337,7 @@ async function main() {
         appState.setState({
           selectedChatIndex: 0,
           chatListScrollOffset: 0,
+          lastChangeType: "selection",
         })
       }
       return // Prevent default ScrollBox behavior
@@ -332,6 +360,7 @@ async function main() {
         appState.setState({
           selectedChatIndex: lastIndex,
           chatListScrollOffset: newScrollOffset,
+          lastChangeType: "selection",
         })
       }
       return // Prevent default ScrollBox behavior
@@ -354,6 +383,7 @@ async function main() {
         appState.setState({
           selectedChatIndex: newIndex,
           chatListScrollOffset: newScrollOffset,
+          lastChangeType: "selection",
         })
         return // Prevent default ScrollBox behavior
       } else if (state.currentView === "conversation" && !state.inputMode) {
@@ -383,6 +413,7 @@ async function main() {
         appState.setState({
           selectedChatIndex: newIndex,
           chatListScrollOffset: newScrollOffset,
+          lastChangeType: "selection",
         })
         return // Prevent default ScrollBox behavior
       } else if (state.currentView === "conversation" && !state.inputMode) {
