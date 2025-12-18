@@ -24,6 +24,7 @@ import { QRCodeView } from "./views/QRCodeView"
 import { MainLayout } from "./views/MainLayout"
 import type { WahaTuiConfig } from "./config/schema"
 import { initDebug, debugLog } from "./utils/debug"
+import { calculateChatListScrollOffset } from "./utils/chatListScroll"
 
 async function promptConfig(): Promise<WahaTuiConfig> {
   console.log("\n📱 Welcome to WAHA TUI!\n")
@@ -218,8 +219,16 @@ async function main() {
       } else if (state.currentView === "chats" && state.chats.length > 0) {
         const newIndex = Math.max(0, state.selectedChatIndex - 1)
         debugLog("Keyboard", `Chats: UP - moving from ${state.selectedChatIndex} to ${newIndex}`)
-        appState.setSelectedChatIndex(newIndex)
-        // Don't return - let ScrollBox also handle scrolling
+        // Calculate new scroll offset
+        const newScrollOffset = calculateChatListScrollOffset(
+          newIndex,
+          state.chatListScrollOffset,
+          state.chats.length
+        )
+        appState.setState({
+          selectedChatIndex: newIndex,
+          chatListScrollOffset: newScrollOffset,
+        })
       } else if (state.currentView === "conversation" && !state.inputMode) {
         // Scroll up (to older messages)
         const newPos = Math.max(0, state.scrollPosition - 1)
@@ -241,12 +250,19 @@ async function main() {
         appState.setSelectedSessionIndex(newIndex)
       } else if (state.currentView === "chats" && state.chats.length > 0) {
         const newIndex = Math.min(state.chats.length - 1, state.selectedChatIndex + 1)
-        debugLog("Keyboard", `Chats: DOWN - moving from ${state.selectedChatIndex} to ${newIndex}`)
-        appState.setSelectedChatIndex(newIndex)
-        // Don't return - let ScrollBox also handle scrolling
+        debugLog("Keyboard", `Chats: DOWN - from ${state.selectedChatIndex} to ${newIndex}`)
+        // Calculate new scroll offset
+        const newScrollOffset = calculateChatListScrollOffset(
+          newIndex,
+          state.chatListScrollOffset,
+          state.chats.length
+        )
+        appState.setState({
+          selectedChatIndex: newIndex,
+          chatListScrollOffset: newScrollOffset,
+        })
       } else if (state.currentView === "conversation" && !state.inputMode) {
         // Scroll down (to newer messages)
-        // We'll recalculate max in the view, but for now just increment
         debugLog(
           "Keyboard",
           `Conversation: DOWN - scrolling from ${state.scrollPosition} to ${state.scrollPosition + 1}`
@@ -281,6 +297,101 @@ async function main() {
           loadContacts(state.currentSession)
           await loadMessages(state.currentSession, chatId)
         }
+      }
+    }
+
+    // HOME key - jump to first item
+    if (key.name === "home") {
+      if (state.currentView === "sessions" && state.sessions.length > 0) {
+        debugLog("Keyboard", `Sessions: HOME - jumping to first session`)
+        appState.setSelectedSessionIndex(0)
+      } else if (state.currentView === "chats" && state.chats.length > 0) {
+        debugLog("Keyboard", `Chats: HOME - jumping to first chat`)
+        appState.setState({
+          selectedChatIndex: 0,
+          chatListScrollOffset: 0,
+        })
+      }
+      return // Prevent default ScrollBox behavior
+    }
+
+    // END key - jump to last item
+    if (key.name === "end") {
+      if (state.currentView === "sessions" && state.sessions.length > 0) {
+        const lastIndex = state.sessions.length - 1
+        debugLog("Keyboard", `Sessions: END - jumping to last session (${lastIndex})`)
+        appState.setSelectedSessionIndex(lastIndex)
+      } else if (state.currentView === "chats" && state.chats.length > 0) {
+        const lastIndex = state.chats.length - 1
+        debugLog("Keyboard", `Chats: END - jumping to last chat (${lastIndex})`)
+        const newScrollOffset = calculateChatListScrollOffset(
+          lastIndex,
+          state.chatListScrollOffset,
+          state.chats.length
+        )
+        appState.setState({
+          selectedChatIndex: lastIndex,
+          chatListScrollOffset: newScrollOffset,
+        })
+      }
+      return // Prevent default ScrollBox behavior
+    }
+
+    // PAGE UP key - jump up by viewport height (~12 chats)
+    if (key.name === "pageup" || key.name === "left") {
+      if (state.currentView === "chats" && state.chats.length > 0) {
+        const pageSize = 12
+        const newIndex = Math.max(0, state.selectedChatIndex - pageSize)
+        debugLog(
+          "Keyboard",
+          `Chats: ${key.name.toUpperCase()} - jumping from ${state.selectedChatIndex} to ${newIndex} (page size: ${pageSize})`
+        )
+        const newScrollOffset = calculateChatListScrollOffset(
+          newIndex,
+          state.chatListScrollOffset,
+          state.chats.length
+        )
+        appState.setState({
+          selectedChatIndex: newIndex,
+          chatListScrollOffset: newScrollOffset,
+        })
+        return // Prevent default ScrollBox behavior
+      } else if (state.currentView === "conversation" && !state.inputMode) {
+        const pageSize = 10
+        debugLog(
+          "Keyboard",
+          `Conversation: PAGE UP - scrolling from ${state.scrollPosition} to ${Math.max(0, state.scrollPosition - pageSize)}`
+        )
+        appState.setScrollPosition(Math.max(0, state.scrollPosition - pageSize))
+      }
+    }
+
+    // PAGE DOWN key - jump down by viewport height (~12 chats)
+    if (key.name === "pagedown" || key.name === "right") {
+      if (state.currentView === "chats" && state.chats.length > 0) {
+        const pageSize = 12
+        const newIndex = Math.min(state.chats.length - 1, state.selectedChatIndex + pageSize)
+        debugLog(
+          "Keyboard",
+          `Chats: ${key.name.toUpperCase()} - jumping from ${state.selectedChatIndex} to ${newIndex} (page size: ${pageSize})`
+        )
+        const newScrollOffset = calculateChatListScrollOffset(
+          newIndex,
+          state.chatListScrollOffset,
+          state.chats.length
+        )
+        appState.setState({
+          selectedChatIndex: newIndex,
+          chatListScrollOffset: newScrollOffset,
+        })
+        return // Prevent default ScrollBox behavior
+      } else if (state.currentView === "conversation" && !state.inputMode) {
+        const pageSize = 10
+        debugLog(
+          "Keyboard",
+          `Conversation: PAGE DOWN - scrolling from ${state.scrollPosition} to ${state.scrollPosition + pageSize}`
+        )
+        appState.setScrollPosition(state.scrollPosition + pageSize)
       }
     }
 

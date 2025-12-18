@@ -203,10 +203,6 @@ export function ChatsView() {
       }
 
       // Create chat row box
-      debugLog(
-        "ChatsView",
-        `Creating chat row ${index}: ${chat.name || chat.id}, isSelected: ${isSelected}`
-      )
       const chatRow = new BoxRenderable(renderer, {
         id: `chat-row-${index}`,
         height: 4,
@@ -226,17 +222,14 @@ export function ChatsView() {
 
       // Handle focus events to update selection
       chatRow.on("focus", () => {
-        debugLog("ChatsView", `Chat row ${index} focused`)
         appState.setSelectedChatIndex(index)
       })
 
       // Handle click to open chat
       chatRow.on("click", async () => {
-        debugLog("ChatsView", `Chat row ${index} clicked`)
         appState.setSelectedChatIndex(index)
         const selectedChat = state.chats[index]
         if (selectedChat && state.currentSession) {
-          debugLog("App", `Selected chat: ${selectedChat.name || selectedChat.id}`)
           appState.setCurrentView("conversation")
           appState.setCurrentChat(selectedChat.id)
           await loadMessages(state.currentSession, selectedChat.id)
@@ -316,6 +309,18 @@ export function ChatsView() {
     }
   }
 
+  // Constants for scroll calculation
+  const ROW_HEIGHT = 4
+
+  // Use scroll offset from state (calculated in keyboard handler)
+  // Convert item offset to pixel offset
+  const initialScrollTop = state.chatListScrollOffset * ROW_HEIGHT
+
+  debugLog(
+    "ChatsView",
+    `Scroll: selectedIndex=${state.selectedChatIndex}, scrollOffset=${state.chatListScrollOffset}, scrollTop=${initialScrollTop}`
+  )
+
   // Create ScrollBox for chat list
   const chatScrollBox = new ScrollBoxRenderable(renderer, {
     id: "chats-scroll-box",
@@ -339,61 +344,15 @@ export function ChatsView() {
     chatScrollBox.add(chatRow)
   }
 
-  // Scroll to selected item to keep it in view
-  debugLog(
-    "ChatsView",
-    `Setting scroll position - selectedIndex: ${state.selectedChatIndex}, totalChats: ${chatRowsRenderables.length}`
-  )
-
-  // Defer scroll to next tick to allow layout to complete
-  setTimeout(() => {
-    if (state.selectedChatIndex > 0 && chatRowsRenderables.length > 0) {
-      const rowHeight = 4 // Each chat row has height 4
-      const viewportHeight = chatScrollBox.viewport.height
-      const scrollHeight = chatScrollBox.scrollHeight
-      const targetPosition = state.selectedChatIndex * rowHeight
-
-      debugLog(
-        "ChatsView",
-        `[Deferred] Scrolling: targetPosition=${targetPosition}, scrollHeight=${scrollHeight}, viewportHeight=${viewportHeight}`
-      )
-
-      // Ensure selected item is visible within viewport
-      const currentScroll = chatScrollBox.scrollTop
-      const itemTop = targetPosition
-      const itemBottom = targetPosition + rowHeight
-
-      let newScrollPosition = currentScroll
-
-      // If item is above viewport, scroll up to show it at top
-      if (itemTop < currentScroll) {
-        newScrollPosition = itemTop
-      }
-      // If item is below viewport, scroll down to show it at bottom
-      else if (itemBottom > currentScroll + viewportHeight) {
-        newScrollPosition = itemBottom - viewportHeight
-      }
-
-      debugLog(
-        "ChatsView",
-        `[Deferred] Scroll calculation: itemTop=${itemTop}, itemBottom=${itemBottom}, currentScroll=${currentScroll}, newScroll=${newScrollPosition}`
-      )
-
-      if (newScrollPosition !== currentScroll) {
-        chatScrollBox.scrollTo(newScrollPosition)
-
-        debugLog("ChatsView", `[Deferred] After scroll: scrollPosition=${chatScrollBox.scrollTop}`)
-      }
-    } else {
-      debugLog(
-        "ChatsView",
-        `[Deferred] Not scrolling - selectedIndex: ${state.selectedChatIndex}, rowCount: ${chatRowsRenderables.length}`
-      )
-    }
-  }, 0)
+  // Apply scroll position after layout completes
+  if (initialScrollTop > 0) {
+    setTimeout(() => {
+      chatScrollBox.scrollTop = initialScrollTop
+      debugLog("ChatsView", `Applied scroll: ${initialScrollTop}`)
+    }, 0)
+  }
 
   // Focus the scroll box to enable keyboard scrolling
-  debugLog("ChatsView", "Focusing scroll box")
   chatScrollBox.focus()
 
   return Box(

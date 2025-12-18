@@ -38,6 +38,9 @@ export interface AppState {
   // Keyboard navigation state
   selectedSessionIndex: number
   selectedChatIndex: number
+
+  // Chat list scroll state (item offset, not pixel offset)
+  chatListScrollOffset: number
 }
 
 class StateManager {
@@ -67,6 +70,9 @@ class StateManager {
     // Keyboard navigation
     selectedSessionIndex: 0,
     selectedChatIndex: 0,
+
+    // Chat list scroll state
+    chatListScrollOffset: 0,
   }
 
   private listeners: Array<(state: AppState) => void> = []
@@ -141,9 +147,12 @@ class StateManager {
   }
 
   setSelectedChatIndex(index: number): void {
-    debugLog(`[AppState] setSelectedChatIndex: ${this.state.selectedChatIndex} -> ${index}`)
+    debugLog("[AppState]", `setSelectedChatIndex: ${this.state.selectedChatIndex} -> ${index}`)
     this.setState({ selectedChatIndex: index })
-    debugLog(`[AppState] State updated, selectedChatIndex is now: ${this.state.selectedChatIndex}`)
+    debugLog(
+      "[AppState]",
+      `State updated, selectedChatIndex is now: ${this.state.selectedChatIndex}`
+    )
   }
 
   setMessageInput(text: string): void {
