@@ -153,17 +153,6 @@ async function main() {
       Box(
         { flexDirection: "column", flexGrow: 1 },
 
-        // Header
-        Box(
-          { height: 3, flexDirection: "column", justifyContent: "center", alignItems: "center" },
-          Logo()
-        ),
-
-        // Status Bar
-        StatusBar(),
-
-        Box({ height: 1 }),
-
         // Main Content Area - WhatsApp Layout or Legacy Views
         Box(
           { flexGrow: 1 },

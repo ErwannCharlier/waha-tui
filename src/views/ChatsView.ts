@@ -34,21 +34,21 @@ export function ChatsView() {
   // Header Section
   const header = Box(
     {
-      height: 3,
+      height: 1,
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       paddingLeft: 2,
       paddingRight: 2,
-      backgroundColor: WhatsAppTheme.panelLight,
+      backgroundColor: WhatsAppTheme.panelDark,
     },
     Text({
-      content: "Chats",
-      fg: WhatsAppTheme.white,
+      content: "WhatsApp",
+      fg: WhatsAppTheme.textPrimary,
       attributes: TextAttributes.BOLD,
     }),
     Box(
-      { flexDirection: "row", gap: 2 },
+      { flexDirection: "row", gap: 1 },
       Text({ content: Icons.newChat, fg: WhatsAppTheme.textSecondary }),
       Text({ content: Icons.menu, fg: WhatsAppTheme.textSecondary })
     )
@@ -57,7 +57,7 @@ export function ChatsView() {
   // Search Bar
   const searchBar = Box(
     {
-      height: 3,
+      height: 5,
       paddingLeft: 2,
       paddingRight: 2,
       paddingTop: 1,
@@ -66,16 +66,19 @@ export function ChatsView() {
     },
     Box(
       {
+        height: 3,
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: WhatsAppTheme.inputBg,
         paddingLeft: 2,
         paddingRight: 2,
+        flexGrow: 1,
         border: true,
+        borderStyle: "rounded",
         borderColor: WhatsAppTheme.borderColor,
       },
       Text({
-        content: state.searchQuery || `${Icons.search} Search or start new chat`,
+        content: state.searchQuery || `${Icons.search} Search or start a new chat`,
         fg: state.searchQuery ? WhatsAppTheme.textPrimary : WhatsAppTheme.textTertiary,
       })
     )
@@ -85,12 +88,15 @@ export function ChatsView() {
   const filters: ActiveFilter[] = ["all", "unread", "favorites", "groups"]
   const filterPills = Box(
     {
-      height: 2,
+      height: 3,
       flexDirection: "row",
       gap: 1,
       paddingLeft: 2,
+      paddingRight: 2,
       paddingTop: 1,
+      paddingBottom: 1,
       backgroundColor: WhatsAppTheme.panelDark,
+      alignItems: "center",
     },
     ...filters.map((filter) => {
       const isActive = state.activeFilter === filter
@@ -98,18 +104,43 @@ export function ChatsView() {
 
       return Box(
         {
+          width: "auto",
+          height: 3,
           paddingLeft: 2,
           paddingRight: 2,
-          backgroundColor: isActive ? WhatsAppTheme.green : WhatsAppTheme.inputBg,
-          border: true,
-          borderColor: isActive ? WhatsAppTheme.green : WhatsAppTheme.borderLight,
+          backgroundColor: isActive ? WhatsAppTheme.green : WhatsAppTheme.receivedBubble,
+          // borderStyle: isActive ? "rounded" : undefined,
+          // borderColor: isActive ? WhatsAppTheme.green : WhatsAppTheme.inputBg,
+          alignItems: "center",
+          justifyContent: "center",
         },
         Text({
           content: label,
           fg: isActive ? WhatsAppTheme.white : WhatsAppTheme.textSecondary,
-          attributes: isActive ? TextAttributes.BOLD : TextAttributes.NONE,
         })
       )
+    })
+  )
+
+  // Archived Section
+  const archivedSection = Box(
+    {
+      height: 3,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingTop: 1,
+      paddingLeft: 2,
+      paddingRight: 2,
+      backgroundColor: WhatsAppTheme.panelDark,
+      gap: 2,
+    },
+    Text({
+      content: "📦",
+      fg: WhatsAppTheme.textSecondary,
+    }),
+    Text({
+      content: "Archived",
+      fg: WhatsAppTheme.textPrimary,
     })
   )
 
@@ -135,11 +166,11 @@ export function ChatsView() {
 
           // Extract message preview from lastMessage object
           const preview = extractMessagePreview(chat.lastMessage)
-          
+
           // Format last message text with sender prefix for group chats
           const isGroupChat = typeof chat.id === "string" ? chat.id.endsWith("@g.us") : false
           let lastMessageText = preview.text
-          
+
           if (isGroupChat && preview.text !== "No messages") {
             if (preview.isFromMe) {
               lastMessageText = `You: ${preview.text}`
@@ -230,6 +261,7 @@ export function ChatsView() {
     header,
     searchBar,
     filterPills,
+    archivedSection,
     // Chat list (scrollable content)
     Box(
       {
