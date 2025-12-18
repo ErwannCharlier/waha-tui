@@ -2,6 +2,8 @@
  * Formatting Utilities
  * Helper functions for formatting data in the TUI
  */
+import { fg, type TextChunk } from "@opentui/core"
+import { WhatsAppTheme, Icons } from "../config/theme"
 
 /**
  * Format a timestamp to relative time (e.g., "2m ago", "yesterday")
@@ -101,6 +103,7 @@ export interface MessagePreview {
   text: string
   timestamp: string
   isFromMe: boolean
+  ack: number
   hasMedia: boolean
   mediaType?: "image" | "video" | "audio" | "document"
 }
@@ -111,6 +114,7 @@ export function extractMessagePreview(lastMessageObj: unknown): MessagePreview {
     text: "No messages",
     timestamp: "",
     isFromMe: false,
+    ack: 0,
     hasMedia: false,
   }
 
@@ -132,7 +136,13 @@ export function extractMessagePreview(lastMessageObj: unknown): MessagePreview {
   let hasMedia = false
   let mediaType: MessagePreview["mediaType"] = undefined
 
-  if (msg.hasMedia === true || msg.type === "image" || msg.type === "video" || msg.type === "audio" || msg.type === "document") {
+  if (
+    msg.hasMedia === true ||
+    msg.type === "image" ||
+    msg.type === "video" ||
+    msg.type === "audio" ||
+    msg.type === "document"
+  ) {
     hasMedia = true
 
     // Determine media type
@@ -142,7 +152,11 @@ export function extractMessagePreview(lastMessageObj: unknown): MessagePreview {
     } else if (msg.type === "video" || msg.mimetype?.toString().startsWith("video/")) {
       mediaType = "video"
       text = text || "🎥 Video"
-    } else if (msg.type === "audio" || msg.type === "ptt" || msg.mimetype?.toString().startsWith("audio/")) {
+    } else if (
+      msg.type === "audio" ||
+      msg.type === "ptt" ||
+      msg.mimetype?.toString().startsWith("audio/")
+    ) {
       mediaType = "audio"
       text = text || "🎵 Audio"
     } else if (msg.type === "document") {
@@ -177,10 +191,14 @@ export function extractMessagePreview(lastMessageObj: unknown): MessagePreview {
   // Check if from me
   const isFromMe = msg.fromMe === true
 
+  // Extract ack
+  const ack = typeof msg.ack === "number" ? msg.ack : 0
+
   return {
     text,
     timestamp,
     isFromMe,
+    ack,
     hasMedia,
     mediaType,
   }
@@ -219,3 +237,36 @@ export function formatChatTimestamp(timestamp: number): string {
   return date.toLocaleDateString([], { month: "short", day: "numeric" })
 }
 
+/**
+ * Format message acknowledgment status with color
+ */
+export function formatAckStatus(ack: number): string | TextChunk {
+  // Enum mapping based on WAHA Node definitions:
+  // -1: ERROR
+  // 0: PENDING
+  // 1: SERVER (Sent)
+  // 2: DEVICE (Delivered)
+  // 3: READ (Read)
+  // 4: PLAYED (Played)
+
+  const readColor = WhatsAppTheme.blue
+
+  switch (ack) {
+    case -1: // ERROR
+    case 0: // PENDING
+      return " ○"
+    case 1: // SERVER
+      return ` ${Icons.checkSingle}`
+    case 2: // DEVICE
+      return ` ${Icons.checkDouble}`
+    case 3: // READ
+    case 4: // PLAYED
+      // Use fg() directly to return a TextChunk for colored output
+      // Note: This requires the consumer to use t`` template tag (e.g. ConversationView)
+      // We prepend a space to the icon before styling or handle it in the consumer.
+      // fg() applies to the text passed.
+      return fg(readColor)(` ${Icons.checkDouble}`)
+    default:
+      return ""
+  }
+}

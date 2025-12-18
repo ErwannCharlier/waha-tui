@@ -3,11 +3,17 @@
  * Manages persistent chat list renderables to avoid rebuilding on every state change
  */
 
-import { BoxRenderable, TextRenderable, ScrollBoxRenderable, TextAttributes } from "@opentui/core"
+import {
+  BoxRenderable,
+  TextRenderable,
+  ScrollBoxRenderable,
+  TextAttributes,
+  t,
+} from "@opentui/core"
 import type { CliRenderer } from "@opentui/core"
 import type { ChatSummary } from "@muhammedaksam/waha-node"
 import { WhatsAppTheme, Icons } from "../config/theme"
-import { truncate, extractMessagePreview } from "../utils/formatters"
+import { truncate, extractMessagePreview, formatAckStatus } from "../utils/formatters"
 import { debugLog } from "../utils/debug"
 import { appState } from "../state/AppState"
 import { loadMessages, loadContacts } from "./ConversationView"
@@ -208,12 +214,14 @@ class ChatListManager {
       })
       messageRow.add(messageText)
 
-      messageRow.add(
-        new TextRenderable(renderer, {
-          content: preview.isFromMe ? Icons.checkDouble : "",
-          fg: WhatsAppTheme.blue,
-        })
-      )
+      // Add Ack Status if message is from me
+      if (preview.isFromMe) {
+        messageRow.add(
+          new TextRenderable(renderer, {
+            content: t`${formatAckStatus(preview.ack)}`,
+          })
+        )
+      }
       chatInfo.add(messageRow)
 
       chatRow.add(chatInfo)

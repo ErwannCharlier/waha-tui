@@ -10,6 +10,7 @@ import {
   TextRenderable,
   BoxRenderable,
   CliRenderer,
+  t,
 } from "@opentui/core"
 import { ScrollBoxRenderable } from "@opentui/core"
 import { appState } from "../state/AppState"
@@ -18,6 +19,7 @@ import { WhatsAppTheme, Icons } from "../config/theme"
 import { debugLog } from "../utils/debug"
 import { getClient } from "../client"
 import type { WAMessage } from "@muhammedaksam/waha-node"
+import { formatAckStatus } from "../utils/formatters"
 
 // Cache for conversation scroll box
 let conversationScrollBox: ScrollBoxRenderable | null = null
@@ -144,6 +146,7 @@ export function ConversationView() {
       alignItems: "center",
       paddingLeft: 2,
       paddingRight: 2,
+      marginTop: 1,
       backgroundColor: WhatsAppTheme.panelLight,
       border: true,
       borderColor: state.inputMode ? WhatsAppTheme.green : WhatsAppTheme.borderLight,
@@ -280,7 +283,7 @@ function renderMessage(
 
   // Build message bubble content with WhatsApp-like layout
   const messageText = message.body || "(media)"
-  const timestampText = `${timestamp}${isFromMe ? ` ${getAckIcon(message.ack)}` : ""}`
+  const timestampText = t`${timestamp}${isFromMe ? formatAckStatus(message.ack) : ""}`
 
   // Create outer row container
   const row = new BoxRenderable(renderer, {
@@ -334,39 +337,24 @@ function renderMessage(
   contentRow.add(contentText)
   bubble.add(contentRow)
 
-  // Row 3: Timestamp (always on separate line)
+  // Row 3: Timestamp & Status (Right aligned)
   const timeRow = new BoxRenderable(renderer, {
     id: `msg-${message.id || Date.now()}-time`,
     height: 1,
     flexDirection: "row",
     justifyContent: "flex-end",
   })
+
   const timeText = new TextRenderable(renderer, {
     content: timestampText,
     fg: isFromMe ? WhatsAppTheme.textSecondary : WhatsAppTheme.textTertiary,
   })
   timeRow.add(timeText)
+
   bubble.add(timeRow)
 
   row.add(bubble)
   return row
-}
-
-function getAckIcon(ack: number): string {
-  switch (ack) {
-    case -1:
-    case 0:
-      return "○" // Pending
-    case 1:
-      return Icons.checkSingle // Sent
-    case 2:
-      return Icons.checkDouble // Delivered
-    case 3:
-    case 4:
-      return `${Icons.checkDouble}` // Read
-    default:
-      return ""
-  }
 }
 
 // Load messages from WAHA API
