@@ -3,7 +3,7 @@
  * Handles scroll offset calculations for the chat list
  */
 
-const ROW_HEIGHT = 4
+const ROW_HEIGHT = 5
 const ESTIMATED_VIEWPORT_HEIGHT = 49
 const MAX_VISIBLE_ITEMS = Math.floor(ESTIMATED_VIEWPORT_HEIGHT / ROW_HEIGHT)
 

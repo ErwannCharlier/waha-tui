@@ -182,7 +182,7 @@ class ChatListManager {
     const rowId = `chat-row-${index}`
     const chatRow = new BoxRenderable(renderer, {
       id: rowId,
-      height: 4,
+      height: 5,
       flexDirection: "row",
       paddingLeft: 2,
       paddingRight: 2,
@@ -224,6 +224,10 @@ class ChatListManager {
       alignItems: "center",
       backgroundColor: WhatsAppTheme.green,
       marginRight: 2,
+      // Center vertically in 5-line row (1 line padding top/bottom effectively)
+      // Actually with paddingTop:1 on parent, we are already starting at line 2
+      // height: 5, total content area = 3 lines (2-4).
+      // avatar height 3 fits perfectly.
     })
 
     const getInitials = (name: string): string => {
