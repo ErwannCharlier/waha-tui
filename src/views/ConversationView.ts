@@ -167,7 +167,7 @@ export async function loadContacts(sessionName: string): Promise<void> {
 
 // Hash function to assign consistent colors to senders
 function getSenderColor(senderId: string): string {
-  debugLog("SenderColor", `Getting color for sender ID: ${senderId}`)
+  // debugLog("SenderColor", `Getting color for sender ID: ${senderId}`)
   const colors = WhatsAppTheme.senderColors
   let hash = 0
   for (let i = 0; i < senderId.length; i++) {
@@ -183,7 +183,8 @@ function getSenderColor(senderId: string): string {
 }
 
 // Extended message type to include runtime fields not in the core type
-interface WAMessageExtended extends WAMessage {
+type WAMessageExtended = Omit<WAMessage, "participant" | "_data"> & {
+  participant?: string
   _data?: {
     notifyName?: string
     pushName?: string
@@ -235,53 +236,79 @@ function renderMessage(message: WAMessageExtended, isGroupChat: boolean = false)
     }
   }
 
+  // Build message bubble content
+  const bubbleContent = []
+
+  // Row 1: Sender name (only for group chat received messages)
+  if (senderName) {
+    bubbleContent.push(
+      Box(
+        {
+          height: 1,
+          flexDirection: "row",
+          justifyContent: "flex-start",
+        },
+        Text({
+          content: senderName,
+          fg: getSenderColor(senderId),
+        })
+      )
+    )
+  }
+
+  // Row 2+: Message content (at least 1 row)
+  bubbleContent.push(
+    Box(
+      {
+        height: 1,
+        flexDirection: "row",
+        justifyContent: "flex-start",
+      },
+      Text({
+        content: message.body || "(media)",
+        fg: WhatsAppTheme.textPrimary,
+      })
+    )
+  )
+
+  // Last row: Timestamp and status
+  bubbleContent.push(
+    Box(
+      {
+        height: 1,
+        flexDirection: "row",
+        justifyContent: "flex-end",
+      },
+      Text({
+        content: `${timestamp}${isFromMe ? `   ${getAckIcon(message.ack)}` : ""}`,
+        fg: isFromMe ? WhatsAppTheme.textSecondary : WhatsAppTheme.textTertiary,
+      })
+    )
+  )
+
+  // Calculate bubble height: number of rows + padding (top + bottom)
+  const numRows = bubbleContent.length
+  const bubbleHeight = numRows + 2 // +2 for paddingTop (1) and paddingBottom (1)
+
   return Box(
     {
       flexDirection: "row",
       justifyContent: isFromMe ? "flex-end" : "flex-start",
-      marginBottom: 2,
+      marginBottom: 1,
     },
     Box(
       {
+        height: bubbleHeight,
         maxWidth: "70%",
-        paddingLeft: 1,
-        paddingRight: 1,
+        minWidth: "20%",
+        paddingLeft: 2,
+        paddingRight: 2,
         backgroundColor: isFromMe ? WhatsAppTheme.greenDark : WhatsAppTheme.receivedBubble,
         border: true,
         borderColor: isFromMe ? WhatsAppTheme.green : WhatsAppTheme.borderColor,
         flexDirection: "column",
       },
-      ...(senderName
-        ? [
-            Box(
-              {
-                flexDirection: "row",
-                justifyContent: "flex-start",
-                marginBottom: 1,
-              },
-              Text({
-                content: senderName,
-                fg: getSenderColor(senderId),
-              })
-            ),
-          ]
-        : []),
-      // Message content
-      Text({
-        content: message.body || "(media)",
-        fg: WhatsAppTheme.textPrimary,
-      }),
-      // Timestamp and status (right aligned)
-      Box(
-        {
-          flexDirection: "row",
-          justifyContent: "flex-end",
-        },
-        Text({
-          content: `${timestamp} ${isFromMe ? getAckIcon(message.ack) : ""}`,
-          fg: isFromMe ? WhatsAppTheme.textSecondary : WhatsAppTheme.textTertiary,
-        })
-      )
+      ...bubbleContent
     )
   )
 }
