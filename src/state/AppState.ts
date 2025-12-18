@@ -45,6 +45,7 @@ export interface AppState {
   scrollPosition: number
   inputMode: boolean
   isSending: boolean
+  inputHeight: number // Dynamic height for message input (1-8 lines)
 
   // Keyboard navigation state
   selectedSessionIndex: number
@@ -82,6 +83,7 @@ class StateManager {
     scrollPosition: 0,
     inputMode: false,
     isSending: false,
+    inputHeight: 3, // Default: 1 line + 2 for border
 
     // Keyboard navigation
     selectedSessionIndex: 0,
@@ -193,6 +195,12 @@ class StateManager {
 
   setIsSending(status: boolean): void {
     this.setState({ isSending: status })
+  }
+
+  setInputHeight(height: number): void {
+    if (this.state.inputHeight !== height) {
+      this.setState({ inputHeight: height })
+    }
   }
 
   setContactsCache(contacts: Map<string, string>): void {

@@ -46,7 +46,10 @@ export function Footer() {
   }
 
   // Always available
-  hints.push({ key: "r", label: "Refresh" }, { key: "q", label: "Quit", keyColor: "#ef5350" })
+  hints.push(
+    { key: "R", label: "Refresh" },
+    { key: "Ctrl + C", label: "Quit", keyColor: "#ef5350" }
+  )
 
   // Build hint text with styled nodes
   const hintText = Text({})

@@ -24,6 +24,8 @@ import {
   scrollConversation,
   destroyConversationScrollBox,
   loadOlderMessages,
+  focusMessageInput,
+  blurMessageInput,
 } from "./views/ConversationView"
 import { createNewSession } from "./views/SessionCreate"
 import { QRCodeView } from "./views/QRCodeView"
@@ -221,22 +223,22 @@ async function main() {
       `Key: ${key.name} | Ctrl: ${key.ctrl} | Shift: ${key.shift} | Meta: ${key.meta}`
     )
 
-    // Quit
-    if ((key.name === "q" && !key.ctrl && !key.shift) || (key.name === "c" && key.ctrl)) {
+    // Get latest state at the beginning of handler
+    const state = appState.getState()
+
+    // Quit (Ctrl+C only)
+    if (key.name === "c" && key.ctrl) {
       process.exit(0)
     }
 
     // Refresh current view
-    if (key.name === "r") {
-      const state = appState.getState()
+    if (key.name === "r" && !state.inputMode) {
       if (state.currentView === "sessions") {
         await loadSessions()
       } else if (state.currentView === "chats" && state.currentSession) {
         await loadChats(state.currentSession)
       }
     }
-
-    const state = appState.getState()
 
     // Arrow key navigation
     if (key.name === "up") {
@@ -428,9 +430,8 @@ async function main() {
     if (key.name === "escape") {
       if (state.currentView === "conversation") {
         if (state.inputMode) {
-          // Exit input mode and clear input
-          appState.setInputMode(false)
-          appState.setMessageInput("")
+          // Exit input mode
+          blurMessageInput()
         } else {
           // Go back to chats
           appState.setCurrentView("chats")
@@ -446,36 +447,9 @@ async function main() {
     if (state.currentView === "conversation") {
       // Enter input mode
       if (key.name === "i" && !state.inputMode) {
-        appState.setInputMode(true)
-        appState.setMessageInput("")
+        focusMessageInput()
       }
-      // When in input mode
-      else if (state.inputMode) {
-        // Send message on Enter
-        if (key.name === "return" || key.name === "enter") {
-          const { sendMessage } = await import("./views/ConversationView")
-          const text = state.messageInput.trim()
-          if (text && state.currentSession && state.currentChatId) {
-            const success = await sendMessage(state.currentSession, state.currentChatId, text)
-            if (success) {
-              appState.setMessageInput("")
-              appState.setInputMode(false)
-            }
-          }
-        }
-        // Backspace
-        else if (key.name === "backspace") {
-          appState.setMessageInput(state.messageInput.slice(0, -1))
-        }
-        // Space
-        else if (key.name === "space") {
-          appState.setMessageInput(state.messageInput + " ")
-        }
-        // Regular characters
-        else if (key.sequence && key.sequence.length === 1 && !key.ctrl && !key.meta) {
-          appState.setMessageInput(state.messageInput + key.sequence)
-        }
-      }
+      // Note: Actual typing is handled by TextareaRenderable when focused
     }
 
     // Create new session (only in sessions view)
@@ -488,14 +462,14 @@ async function main() {
     }
 
     // Navigate to sessions view
-    if (key.name === "1") {
+    if (key.name === "1" && !state.inputMode) {
       appState.setCurrentView("sessions")
       appState.setSelectedSessionIndex(0)
       await loadSessions()
     }
 
     // Navigate to chats view
-    if (key.name === "2") {
+    if (key.name === "2" && !state.inputMode) {
       if (state.currentSession) {
         appState.setCurrentView("chats")
         appState.setSelectedChatIndex(0)

@@ -127,9 +127,10 @@ export function extractMessagePreview(lastMessageObj: unknown): MessagePreview {
   // Extract message text
   let text = ""
   if (typeof msg.body === "string" && msg.body) {
-    text = msg.body
+    // Replace newlines with spaces for single-line preview
+    text = msg.body.replace(/\r?\n/g, " ").trim()
   } else if (typeof msg.caption === "string" && msg.caption) {
-    text = msg.caption
+    text = msg.caption.replace(/\r?\n/g, " ").trim()
   }
 
   // Check for media

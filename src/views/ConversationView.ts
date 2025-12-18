@@ -11,6 +11,9 @@ import {
   BoxRenderable,
   CliRenderer,
   t,
+  TextareaRenderable,
+  RenderableEvents,
+  fg,
 } from "@opentui/core"
 import { ScrollBoxRenderable } from "@opentui/core"
 import { appState } from "../state/AppState"
@@ -21,8 +24,27 @@ import { getClient } from "../client"
 import type { WAMessage, GroupParticipant, WAHAChatPresences } from "@muhammedaksam/waha-node"
 import { formatAckStatus, formatLastSeen, truncate } from "../utils/formatters"
 
-// Cache for conversation scroll box
+// Cache for conversation scroll box and input
 let conversationScrollBox: ScrollBoxRenderable | null = null
+let messageInputComponent: TextareaRenderable | null = null
+let inputContainer: BoxRenderable | null = null
+
+// Expose input focus control
+export function focusMessageInput(): void {
+  if (messageInputComponent) {
+    messageInputComponent.focus()
+  }
+}
+
+export function blurMessageInput(): void {
+  if (messageInputComponent) {
+    messageInputComponent.blur()
+  }
+}
+
+export function isMessageInputFocused(): boolean {
+  return messageInputComponent ? messageInputComponent.focused : false
+}
 
 export function ConversationView() {
   const state = appState.getState()
@@ -185,25 +207,117 @@ export function ConversationView() {
   }
 
   // Message input field (bottom)
-  const inputField = Box(
-    {
-      height: 3,
+  // Initial and max height for input
+  const MIN_INPUT_HEIGHT = 3
+  const MAX_INPUT_LINES = 8
+
+  // Initialize input container (Box that holds the textarea)
+  if (!inputContainer) {
+    inputContainer = new BoxRenderable(renderer, {
+      id: "input-container",
+      height: state.inputHeight, // Use state-driven height
       flexDirection: "row",
       alignItems: "center",
-      paddingLeft: 2,
-      paddingRight: 2,
+      paddingLeft: 1,
+      paddingRight: 1,
       marginTop: 1,
       backgroundColor: WhatsAppTheme.panelLight,
       border: true,
-      borderColor: state.inputMode ? WhatsAppTheme.green : WhatsAppTheme.borderLight,
-    },
-    Text({
-      content: state.inputMode
-        ? `${Icons.smile} ${state.messageInput}${state.isSending ? " (sending...)" : ""}`
-        : "Press 'i' to type a message",
-      fg: state.inputMode ? WhatsAppTheme.white : WhatsAppTheme.textSecondary,
+      borderColor: WhatsAppTheme.borderLight,
+      title: "Press 'i' to type",
     })
-  )
+  }
+
+  // Update container height from state on each render
+  inputContainer.height = state.inputHeight
+  inputContainer.title = state.inputMode ? "Type a message (Enter to send)" : "Press 'i' to type"
+  inputContainer.borderColor = state.inputMode ? WhatsAppTheme.green : WhatsAppTheme.borderLight
+
+  // Initialize input component
+  if (!messageInputComponent) {
+    messageInputComponent = new TextareaRenderable(renderer, {
+      id: "message-input",
+      flexGrow: 1,
+      height: "100%", // Fill the container
+      backgroundColor: WhatsAppTheme.panelLight,
+      textColor: WhatsAppTheme.textPrimary,
+      focusedBackgroundColor: WhatsAppTheme.panelLight,
+      focusedTextColor: WhatsAppTheme.textPrimary,
+      placeholder: t`${fg(WhatsAppTheme.textSecondary)("Type a message...")}`,
+      cursorColor: WhatsAppTheme.green,
+      initialValue: state.messageInput,
+      wrapMode: "word",
+      // Override keybindings: Enter = submit, Shift+Enter or Ctrl+Enter = newline
+      keyBindings: [
+        { name: "return", shift: true, action: "newline" },
+        { name: "return", ctrl: true, action: "newline" },
+        { name: "return", action: "submit" },
+        { name: "linefeed", shift: true, action: "newline" },
+        { name: "linefeed", ctrl: true, action: "newline" },
+        { name: "linefeed", action: "submit" },
+      ],
+    })
+
+    // Event Handlers
+    messageInputComponent.on(RenderableEvents.FOCUSED, () => {
+      appState.setInputMode(true)
+    })
+
+    messageInputComponent.on(RenderableEvents.BLURRED, () => {
+      appState.setInputMode(false)
+    })
+
+    // Auto-expand logic
+    messageInputComponent.onContentChange = () => {
+      if (messageInputComponent) {
+        // Sync state
+        appState.setMessageInput(messageInputComponent.plainText)
+
+        // Calculate needed height
+        // Use lineCount (logical lines) instead of virtualLineCount
+        // as virtualLineCount may not be updated until after layout
+        const lineCount = Math.max(1, messageInputComponent.lineCount)
+
+        // Calculate container height:
+        // 2 (border) + lineCount
+        const neededHeight = Math.min(lineCount + 2, MAX_INPUT_LINES + 2)
+
+        debugLog(
+          "[Input]",
+          `lineCount=${lineCount}, neededHeight=${neededHeight}, currentHeight=${appState.getState().inputHeight}`
+        )
+
+        // Update state - this triggers a re-render with new height
+        appState.setInputHeight(neededHeight)
+      }
+    }
+
+    messageInputComponent.onSubmit = async () => {
+      if (messageInputComponent) {
+        const text = messageInputComponent.plainText.trim()
+        if (text && state.currentSession && state.currentChatId) {
+          const success = await sendMessage(state.currentSession, state.currentChatId, text)
+          if (success) {
+            messageInputComponent.setText("")
+            appState.setMessageInput("")
+            // Reset height via state
+            appState.setInputHeight(MIN_INPUT_HEIGHT)
+          }
+        }
+      }
+    }
+  }
+
+  // Ensure component value matches state if it was changed externally
+  if (messageInputComponent.plainText !== state.messageInput && !messageInputComponent.focused) {
+    messageInputComponent.setText(state.messageInput)
+  }
+
+  // Clear children and add input (idempotent check)
+  const children = inputContainer.getChildren()
+  if (children.length === 0) {
+    inputContainer.add(messageInputComponent)
+  }
 
   return Box(
     {
@@ -213,7 +327,7 @@ export function ConversationView() {
     },
     header,
     conversationScrollBox,
-    inputField
+    inputContainer
   )
 }
 
@@ -223,6 +337,13 @@ export function destroyConversationScrollBox(): void {
     conversationScrollBox.destroyRecursively()
     conversationScrollBox = null
     debugLog("ConversationView", "Conversation scroll box destroyed")
+  }
+  // Also destroy input to reset state/listeners
+  if (messageInputComponent) {
+    if (!messageInputComponent.isDestroyed) {
+      messageInputComponent.destroy()
+    }
+    messageInputComponent = null
   }
 }
 
@@ -369,10 +490,9 @@ function renderMessage(
     bubble.add(senderRow)
   }
 
-  // Row 2: Message content
+  // Row 2: Message content (dynamic height for multiline)
   const contentRow = new BoxRenderable(renderer, {
     id: `msg-${message.id || Date.now()}-content`,
-    height: 1,
     flexDirection: "row",
     justifyContent: "flex-start",
   })
