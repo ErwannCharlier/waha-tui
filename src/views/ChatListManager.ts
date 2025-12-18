@@ -12,8 +12,14 @@ import {
 } from "@opentui/core"
 import type { CliRenderer } from "@opentui/core"
 import type { ChatSummary } from "@muhammedaksam/waha-node"
-import { WhatsAppTheme, Icons } from "../config/theme"
-import { truncate, extractMessagePreview, formatAckStatus } from "../utils/formatters"
+import { WhatsAppTheme } from "../config/theme"
+import {
+  truncate,
+  extractMessagePreview,
+  formatAckStatus,
+  getInitials,
+  isSelfChat,
+} from "../utils/formatters"
 import { debugLog } from "../utils/debug"
 import { appState } from "../state/AppState"
 import { loadMessages, loadContacts } from "./ConversationView"
@@ -169,7 +175,12 @@ class ChatListManager {
     // Extract message preview
     const preview = extractMessagePreview(chat.lastMessage)
     const isGroupChat = typeof chat.id === "string" ? chat.id.endsWith("@g.us") : false
+    const chatIdStr =
+      typeof chat.id === "string" ? chat.id : (chat.id as { _serialized: string })._serialized
+    const isSelf = isSelfChat(chatIdStr, appState.getState().myProfile?.id ?? null)
     let lastMessageText = preview.text
+    // Add "(You)" suffix for self-chat
+    const displayName = isSelf ? `${chat.name || chat.id} (You)` : chat.name || chat.id
 
     if (isGroupChat && preview.text !== "No messages") {
       if (preview.isFromMe) {
@@ -230,15 +241,6 @@ class ChatListManager {
       // avatar height 3 fits perfectly.
     })
 
-    const getInitials = (name: string): string => {
-      if (!name) return Icons.online
-      const words = name.trim().split(/\s+/)
-      return words
-        .slice(0, 3)
-        .map((word) => word.charAt(0).toUpperCase())
-        .join("")
-    }
-
     const avatarText = new TextRenderable(renderer, {
       content: getInitials(chat.name || ""),
       fg: WhatsAppTheme.white,
@@ -262,7 +264,7 @@ class ChatListManager {
     })
 
     const nameText = new TextRenderable(renderer, {
-      content: truncate(chat.name || chat.id, 25),
+      content: truncate(displayName),
       fg: WhatsAppTheme.white,
       attributes: isSelected ? TextAttributes.BOLD : TextAttributes.NONE,
     })
@@ -283,7 +285,7 @@ class ChatListManager {
     })
 
     const messageText = new TextRenderable(renderer, {
-      content: truncate(lastMessageText, 30),
+      content: truncate(lastMessageText),
       fg: WhatsAppTheme.textSecondary,
     })
     messageRow.add(messageText)
@@ -340,6 +342,10 @@ class ChatListManager {
       // Prepare data
       const preview = extractMessagePreview(chat.lastMessage)
       const isGroupChat = typeof chat.id === "string" ? chat.id.endsWith("@g.us") : false
+      const chatIdStr =
+        typeof chat.id === "string" ? chat.id : (chat.id as { _serialized: string })._serialized
+      const isSelf = isSelfChat(chatIdStr, appState.getState().myProfile?.id ?? null)
+      const displayName = isSelf ? `${chat.name || chat.id} (You)` : chat.name || chat.id
       let lastMessageText = preview.text
       if (isGroupChat && preview.text !== "No messages" && preview.isFromMe) {
         lastMessageText = `You: ${preview.text}`
@@ -347,23 +353,16 @@ class ChatListManager {
 
       // Update Text Content directly
       // 1. Avatar Initials
-      const getInitials = (name: string): string => {
-        if (!name) return Icons.online
-        const words = name.trim().split(/\s+/)
-        return words
-          .slice(0, 3)
-          .map((word) => word.charAt(0).toUpperCase())
-          .join("")
-      }
+
       rowData.avatarText.content = getInitials(chat.name || "")
       rowData.avatarText.attributes = isSelected ? TextAttributes.BOLD : TextAttributes.NONE
 
       // 2. Name
-      rowData.nameText.content = truncate(chat.name || chat.id, 25)
+      rowData.nameText.content = truncate(displayName, 50)
       rowData.nameText.attributes = isSelected ? TextAttributes.BOLD : TextAttributes.NONE
 
       // 3. Message Preview
-      rowData.messageText.content = truncate(lastMessageText, 30)
+      rowData.messageText.content = truncate(lastMessageText, 50)
 
       // Note: We are currently NOT updating the timestamp text or ack status text dynamically
       // because we didn't store references to them in ChatRowData interface.

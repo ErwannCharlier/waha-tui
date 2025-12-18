@@ -38,7 +38,7 @@ export function formatTime(timestamp: number | string): string {
 /**
  * Truncate text with ellipsis
  */
-export function truncate(text: string, maxLength: number): string {
+export function truncate(text: string, maxLength: number = 50): string {
   if (text.length <= maxLength) return text
   return text.slice(0, maxLength - 3) + "..."
 }
@@ -291,4 +291,30 @@ export function formatLastSeen(timestamp: number): string {
   }
   // Otherwise say "last seen {date} at {time}"
   return `last seen ${dateStr} at ${time}`
+}
+
+/**
+ * Get initials from a name (up to 3 characters)
+ */
+export function getInitials(name: string, maxCount: number = 3): string {
+  if (!name) return "?"
+  const words = name.trim().split(/\s+/)
+  return words
+    .slice(0, maxCount)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join("")
+}
+
+/**
+ * Check if a chat ID is a group chat
+ */
+export function isGroupChat(chatId: string): boolean {
+  return chatId.endsWith("@g.us")
+}
+
+/**
+ * Check if a chat ID is the user's own self-chat (Saved Messages)
+ */
+export function isSelfChat(chatId: string, myProfileId: string | null): boolean {
+  return myProfileId ? chatId === myProfileId : false
 }

@@ -23,7 +23,14 @@ import { WhatsAppTheme, Icons } from "../config/theme"
 import { debugLog } from "../utils/debug"
 import { getClient } from "../client"
 import type { WAMessage, GroupParticipant, WAHAChatPresences } from "@muhammedaksam/waha-node"
-import { formatAckStatus, formatLastSeen, truncate } from "../utils/formatters"
+import {
+  formatAckStatus,
+  formatLastSeen,
+  truncate,
+  getInitials,
+  isGroupChat,
+  isSelfChat,
+} from "../utils/formatters"
 
 // Cache for conversation scroll box and input
 let conversationScrollBox: ScrollBoxRenderable | null = null
@@ -68,8 +75,9 @@ export function ConversationView() {
     )
   }
 
-  // Determine if this is a group chat
-  const isGroupChat = state.currentChatId.endsWith("@g.us")
+  // Determine if this is a group chat or self-chat
+  const isGroup = isGroupChat(state.currentChatId)
+  const isSelf = isSelfChat(state.currentChatId, state.myProfile?.id ?? null)
 
   // Get current chat info
   // Note: chat.id might be an object with _serialized, so we need to normalize for comparison
@@ -78,7 +86,9 @@ export function ConversationView() {
       typeof chat.id === "string" ? chat.id : (chat.id as { _serialized: string })._serialized
     return chatId === state.currentChatId
   })
-  const chatName = currentChat?.name || state.currentChatId
+  const baseChatName = currentChat?.name || state.currentChatId
+  // Add "(You)" suffix for self-chat
+  const chatName = isSelf ? `${baseChatName} (You)` : baseChatName
 
   // Get messages for this chat
   const messages = state.messages.get(state.currentChatId) || []
@@ -86,9 +96,12 @@ export function ConversationView() {
   // Messages - newest at bottom (WhatsApp style)
   const reversedMessages = messages.slice().reverse()
 
-  let headerSubtitle = ""
+  // Set header subtitle based on chat type
+  let headerSubtitle = isSelf
+    ? "Message yourself"
+    : `click here for ${isGroup ? "group" : "contact"} info`
 
-  if (isGroupChat) {
+  if (isGroup) {
     // Group chat: show participants
     if (state.currentChatParticipants) {
       const names = state.currentChatParticipants
@@ -118,13 +131,14 @@ export function ConversationView() {
     } else {
       // Trigger load if not present (could also poll)
       // loadChatDetails checks cache internally or we can throttle
+      headerSubtitle = ""
       loadChatDetails(state.currentSession, state.currentChatId)
     }
   }
 
   const header = Box(
     {
-      height: headerSubtitle ? 4 : 3,
+      height: 5,
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
@@ -134,25 +148,62 @@ export function ConversationView() {
       border: true,
       borderColor: WhatsAppTheme.borderLight,
     },
+    // Avatar
+    Box(
+      {
+        width: 7,
+        height: 3,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: WhatsAppTheme.green,
+        marginRight: 2,
+      },
+      Text({
+        content: getInitials(chatName),
+        fg: WhatsAppTheme.white,
+        attributes: TextAttributes.BOLD,
+      })
+    ),
+    // Name and subtitle column
     Box(
       {
         flexDirection: "column",
         justifyContent: "center",
+        flexGrow: 1,
+      },
+      ...(headerSubtitle
+        ? [
+            Text({ content: chatName, fg: WhatsAppTheme.white, attributes: TextAttributes.BOLD }),
+            Text({ content: headerSubtitle, fg: WhatsAppTheme.textSecondary }),
+          ]
+        : [
+            Text({}),
+            Text({
+              content: chatName,
+              fg: WhatsAppTheme.white,
+              attributes: TextAttributes.BOLD,
+            }),
+          ]),
+      Text({})
+    ),
+    // Search/Menu icons (like WhatsApp Web)
+    Box(
+      {
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 2,
+        paddingRight: 2,
       },
       Text({
-        content: chatName,
-        fg: WhatsAppTheme.white,
-        attributes: TextAttributes.BOLD,
+        content: Icons.search,
+        fg: WhatsAppTheme.textSecondary,
       }),
       Text({
-        content: headerSubtitle,
+        content: Icons.menu,
         fg: WhatsAppTheme.textSecondary,
       })
-    ),
-    Text({
-      content: `${Icons.call} ${Icons.video}`,
-      fg: WhatsAppTheme.textSecondary,
-    })
+    )
   )
 
   // Create or update the scroll box for messages
@@ -204,7 +255,7 @@ export function ConversationView() {
         conversationScrollBox.add(DaySeparator(renderer, dateLabel))
         lastDateLabel = dateLabel
       }
-      conversationScrollBox.add(renderMessage(renderer, message, isGroupChat))
+      conversationScrollBox.add(renderMessage(renderer, message, isGroup))
     }
   }
 
@@ -507,7 +558,7 @@ function renderMessage(
   // Create bubble container
   const bubble = new BoxRenderable(renderer, {
     id: `msg-${message.id || Date.now()}-bubble`,
-    maxWidth: "70%",
+    maxWidth: "65%",
     minWidth: "15%",
     paddingLeft: 2,
     paddingRight: 2,

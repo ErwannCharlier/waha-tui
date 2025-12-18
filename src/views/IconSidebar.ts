@@ -3,10 +3,11 @@
  * Vertical navigation with emoji icons for main sections
  */
 
-import { Box, Text } from "@opentui/core"
+import { Box, Text, TextAttributes } from "@opentui/core"
 import { appState } from "../state/AppState"
 import { WhatsAppTheme, Icons, Layout } from "../config/theme"
 import type { ActiveIcon } from "../state/AppState"
+import { getInitials } from "../utils/formatters"
 
 export function IconSidebar() {
   const state = appState.getState()
@@ -14,8 +15,12 @@ export function IconSidebar() {
   const iconItems: Array<{ key: ActiveIcon; icon: string; position: "top" | "bottom" }> = [
     { key: "chats", icon: Icons.chats, position: "top" },
     { key: "status", icon: Icons.status, position: "top" },
-    { key: "profile", icon: Icons.profile, position: "bottom" },
+    { key: "channels", icon: Icons.channels, position: "top" },
+    { key: "communities", icon: Icons.communities, position: "top" },
+    // Bottom section - like WhatsApp Web
+    { key: "status", icon: "📷", position: "bottom" }, // Status/Photos
     { key: "settings", icon: Icons.settings, position: "bottom" },
+    // { key: "profile", icon: Icons.profile, position: "bottom" },
   ]
 
   // Top icons
@@ -26,12 +31,12 @@ export function IconSidebar() {
 
       return Box(
         {
-          width: Layout.iconSidebarWidth,
           height: 3,
+          width: Layout.iconSidebarWidth,
           justifyContent: "center",
           alignItems: "center",
           backgroundColor: isActive ? WhatsAppTheme.activeBg : WhatsAppTheme.panelDark,
-          border: isActive,
+          border: false,
           borderColor: isActive ? WhatsAppTheme.green : undefined,
         },
         Text({
@@ -86,7 +91,22 @@ export function IconSidebar() {
       {
         flexDirection: "column",
       },
-      ...bottomIcons
+      ...bottomIcons,
+      Box(
+        {
+          width: 5,
+          height: 3,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: WhatsAppTheme.green,
+          marginLeft: 1,
+        },
+        Text({
+          content: getInitials(state.myProfile?.name || ""),
+          fg: WhatsAppTheme.white,
+          attributes: TextAttributes.BOLD,
+        })
+      )
     )
   )
 }

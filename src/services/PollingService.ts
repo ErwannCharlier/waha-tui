@@ -23,6 +23,9 @@ class PollingService {
     this.stop() // Clear existing timers
     debugLog("Polling", `Starting polling service for session: ${sessionName}`)
 
+    // Fetch current user's profile for self-chat detection
+    this.fetchMyProfile(sessionName)
+
     // Start chats polling
     this.chatsTimer = setInterval(() => this.pollChats(sessionName), CHATS_POLL_INTERVAL)
 
@@ -86,6 +89,19 @@ class PollingService {
       // Silent error
     } finally {
       this.isPollingMessages = false
+    }
+  }
+
+  private async fetchMyProfile(sessionName: string): Promise<void> {
+    try {
+      const client = getClient()
+      const response = await client.profile.profileControllerGetMyProfile(sessionName)
+      if (response.data) {
+        appState.setMyProfile(response.data)
+        debugLog("Polling", `Fetched my profile: ${response.data.name} (${response.data.id})`)
+      }
+    } catch {
+      debugLog("Polling", "Failed to fetch profile")
     }
   }
 }

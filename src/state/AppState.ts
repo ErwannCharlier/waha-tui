@@ -9,13 +9,14 @@ import type {
   WAMessage,
   WAHAChatPresences,
   GroupParticipant,
+  MyProfile,
 } from "@muhammedaksam/waha-node"
 import { debugLog } from "../utils/debug"
 
 export type ViewType = "sessions" | "chats" | "conversation" | "settings" | "qr"
 
 export type ActiveFilter = "all" | "unread" | "favorites" | "groups"
-export type ActiveIcon = "chats" | "status" | "profile" | "settings"
+export type ActiveIcon = "chats" | "status" | "profile" | "settings" | "channels" | "communities"
 
 // Type of state change - enables render optimization
 export type ChangeType = "selection" | "scroll" | "data" | "view" | "other"
@@ -34,6 +35,7 @@ export interface AppState {
   errorMessage: string | null
   currentChatPresence: WAHAChatPresences | null
   currentChatParticipants: GroupParticipant[] | null
+  myProfile: MyProfile | null // Current user's profile (id, name, picture)
 
   // UI State for WhatsApp-style layout
   activeFilter: ActiveFilter
@@ -72,6 +74,7 @@ class StateManager {
     errorMessage: null,
     currentChatPresence: null,
     currentChatParticipants: null,
+    myProfile: null,
 
     // UI State
     activeFilter: "all",
@@ -126,18 +129,18 @@ class StateManager {
   }
 
   // Helper methods
-  setCurrentView(view: ViewType): void {
-    this.setState({ currentView: view, lastChangeType: "view" })
+  setCurrentView(currentView: ViewType): void {
+    this.setState({ currentView, lastChangeType: "view" })
   }
 
-  setCurrentSession(sessionName: string | null): void {
-    this.setState({ currentSession: sessionName })
+  setCurrentSession(currentSession: string | null): void {
+    this.setState({ currentSession })
   }
 
-  setCurrentChat(chatId: string | null): void {
+  setCurrentChat(currentChatId: string | null): void {
     this.setState({
-      currentChatId: chatId,
-      currentView: chatId ? "conversation" : "chats",
+      currentChatId,
+      currentView: currentChatId ? "conversation" : "chats",
       currentChatPresence: null,
       currentChatParticipants: null,
     })
@@ -151,72 +154,79 @@ class StateManager {
     this.setState({ chats, lastChangeType: "data" })
   }
 
-  setMessages(chatId: string, messages: WAMessage[]): void {
-    const messagesMap = new Map(this.state.messages)
-    messagesMap.set(chatId, messages)
-    this.setState({ messages: messagesMap })
+  setMessages(chatId: string, messagesToSet: WAMessage[]): void {
+    const messages = new Map(this.state.messages)
+    messages.set(chatId, messagesToSet)
+    this.setState({ messages })
   }
 
   addMessage(chatId: string, message: WAMessage): void {
-    const messagesMap = new Map(this.state.messages)
-    const existing = messagesMap.get(chatId) || []
-    messagesMap.set(chatId, [...existing, message])
-    this.setState({ messages: messagesMap })
+    const messages = new Map(this.state.messages)
+    const existing = messages.get(chatId) || []
+    messages.set(chatId, [...existing, message])
+    this.setState({ messages })
   }
 
-  setConnectionStatus(status: AppState["connectionStatus"], errorMessage?: string): void {
-    this.setState({ connectionStatus: status, errorMessage: errorMessage || null })
+  setConnectionStatus(connectionStatus: AppState["connectionStatus"], errorMessage?: string): void {
+    this.setState({ connectionStatus, errorMessage })
   }
 
-  setSelectedSessionIndex(index: number): void {
-    this.setState({ selectedSessionIndex: index })
+  setSelectedSessionIndex(selectedSessionIndex: number): void {
+    this.setState({ selectedSessionIndex })
   }
 
-  setSelectedChatIndex(index: number): void {
-    debugLog("[AppState]", `setSelectedChatIndex: ${this.state.selectedChatIndex} -> ${index}`)
-    this.setState({ selectedChatIndex: index })
+  setSelectedChatIndex(selectedChatIndex: number): void {
+    debugLog(
+      "[AppState]",
+      `setSelectedChatIndex: ${this.state.selectedChatIndex} -> ${selectedChatIndex}`
+    )
+    this.setState({ selectedChatIndex })
     debugLog(
       "[AppState]",
       `State updated, selectedChatIndex is now: ${this.state.selectedChatIndex}`
     )
   }
 
-  setMessageInput(text: string): void {
-    this.setState({ messageInput: text })
+  setMessageInput(messageInput: string): void {
+    this.setState({ messageInput })
   }
 
-  setScrollPosition(position: number): void {
-    this.setState({ scrollPosition: position })
+  setScrollPosition(scrollPosition: number): void {
+    this.setState({ scrollPosition })
   }
 
-  setInputMode(enabled: boolean): void {
-    this.setState({ inputMode: enabled })
+  setInputMode(inputMode: boolean): void {
+    this.setState({ inputMode })
   }
 
-  setIsSending(status: boolean): void {
-    this.setState({ isSending: status })
+  setIsSending(isSending: boolean): void {
+    this.setState({ isSending })
   }
 
-  setInputHeight(height: number): void {
-    if (this.state.inputHeight !== height) {
-      this.setState({ inputHeight: height })
+  setInputHeight(inputHeight: number): void {
+    if (this.state.inputHeight !== inputHeight) {
+      this.setState({ inputHeight })
     }
   }
 
-  setContactsCache(contacts: Map<string, string>): void {
-    this.setState({ contactsCache: contacts })
+  setContactsCache(contactsCache: Map<string, string>): void {
+    this.setState({ contactsCache })
   }
 
   getContactName(contactId: string): string | undefined {
     return this.state.contactsCache.get(contactId)
   }
 
-  setCurrentChatPresence(presence: WAHAChatPresences | null): void {
-    this.setState({ currentChatPresence: presence })
+  setCurrentChatPresence(currentChatPresence: WAHAChatPresences | null): void {
+    this.setState({ currentChatPresence })
   }
 
-  setCurrentChatParticipants(participants: GroupParticipant[] | null): void {
-    this.setState({ currentChatParticipants: participants })
+  setCurrentChatParticipants(currentChatParticipants: GroupParticipant[] | null): void {
+    this.setState({ currentChatParticipants })
+  }
+
+  setMyProfile(myProfile: MyProfile | null): void {
+    this.setState({ myProfile })
   }
 }
 

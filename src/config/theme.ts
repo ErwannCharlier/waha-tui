@@ -208,13 +208,15 @@ export const WhatsAppTheme = {
 export const Icons = {
   // Navigation
   chats: "💬",
-  status: "📊",
+  status: "⭕",
+  channels: "📢",
+  communities: "👥",
   profile: "👤",
   settings: "⚙️",
 
   // Actions
   newChat: "+",
-  menu: "☰",
+  menu: "⋮",
   search: "🔍",
   video: "📹",
   call: "📞",
@@ -255,7 +257,7 @@ export const BoxChars = {
 } as const
 
 export const Layout = {
-  iconSidebarWidth: 8,
+  iconSidebarWidth: 6,
   chatListMinWidth: 30,
   chatListMaxWidth: 40,
   minTerminalWidth: 80,
