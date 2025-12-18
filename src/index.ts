@@ -16,8 +16,10 @@ import { initializeClient, testConnection } from "./client"
 import { appState } from "./state/AppState"
 import { StatusBar } from "./components/StatusBar"
 import { Footer } from "./components/Footer"
-import { SessionsView, loadSessions } from "./views/SessionsView"
+import { SessionsView } from "./views/SessionsView"
+import { loadSessions } from "./views/SessionsView"
 import { loadChats } from "./views/ChatsView"
+import { loadMessages, loadContacts } from "./views/ConversationView"
 import { createNewSession } from "./views/SessionCreate"
 import { QRCodeView } from "./views/QRCodeView"
 import { MainLayout } from "./views/MainLayout"
@@ -220,6 +222,10 @@ async function main() {
       } else if (state.currentView === "chats" && state.chats.length > 0) {
         const newIndex = Math.max(0, state.selectedChatIndex - 1)
         appState.setSelectedChatIndex(newIndex)
+      } else if (state.currentView === "conversation" && !state.inputMode) {
+        // Scroll up (to older messages)
+        const newPos = Math.max(0, state.scrollPosition - 1)
+        appState.setScrollPosition(newPos)
       }
     }
 
@@ -230,6 +236,10 @@ async function main() {
       } else if (state.currentView === "chats" && state.chats.length > 0) {
         const newIndex = Math.min(state.chats.length - 1, state.selectedChatIndex + 1)
         appState.setSelectedChatIndex(newIndex)
+      } else if (state.currentView === "conversation" && !state.inputMode) {
+        // Scroll down (to newer messages)
+        // We'll recalculate max in the view, but for now just increment
+        appState.setScrollPosition(state.scrollPosition + 1)
       }
     }
 
@@ -246,11 +256,18 @@ async function main() {
         }
       } else if (state.currentView === "chats" && state.chats.length > 0) {
         const selectedChat = state.chats[state.selectedChatIndex]
-        if (selectedChat) {
-          debugLog("App", `Selected chat object: ${JSON.stringify(selectedChat)}`)
-          debugLog("App", `Selected chat ID: ${selectedChat.id}`)
-          appState.setCurrentChat(selectedChat.id)
-          // Conversation view will be implemented later
+        if (selectedChat && state.currentSession) {
+          // ChatSummary.id is typed as string but runtime returns an object with _serialized
+          const chatId =
+            typeof selectedChat.id === "string"
+              ? selectedChat.id
+              : (selectedChat.id as { _serialized: string })._serialized
+
+          debugLog("App", `Selected chat: ${selectedChat.name || chatId}`)
+          appState.setCurrentChat(chatId)
+          // Load contacts in background to populate cache
+          loadContacts(state.currentSession)
+          await loadMessages(state.currentSession, chatId)
         }
       }
     }
@@ -258,11 +275,54 @@ async function main() {
     // Escape key - go back
     if (key.name === "escape") {
       if (state.currentView === "conversation") {
-        appState.setCurrentView("chats")
-        appState.setCurrentChat(null)
+        if (state.inputMode) {
+          // Exit input mode and clear input
+          appState.setInputMode(false)
+          appState.setMessageInput("")
+        } else {
+          // Go back to chats
+          appState.setCurrentView("chats")
+          appState.setCurrentChat(null)
+        }
       } else if (state.currentView === "chats") {
         appState.setCurrentView("sessions")
         appState.setSelectedSessionIndex(0) // Reset session selection
+      }
+    }
+
+    // Input mode handling for conversation view
+    if (state.currentView === "conversation") {
+      // Enter input mode
+      if (key.name === "i" && !state.inputMode) {
+        appState.setInputMode(true)
+        appState.setMessageInput("")
+      }
+      // When in input mode
+      else if (state.inputMode) {
+        // Send message on Enter
+        if (key.name === "return" || key.name === "enter") {
+          const { sendMessage } = await import("./views/ConversationView")
+          const text = state.messageInput.trim()
+          if (text && state.currentSession && state.currentChatId) {
+            const success = await sendMessage(state.currentSession, state.currentChatId, text)
+            if (success) {
+              appState.setMessageInput("")
+              appState.setInputMode(false)
+            }
+          }
+        }
+        // Backspace
+        else if (key.name === "backspace") {
+          appState.setMessageInput(state.messageInput.slice(0, -1))
+        }
+        // Space
+        else if (key.name === "space") {
+          appState.setMessageInput(state.messageInput + " ")
+        }
+        // Regular characters
+        else if (key.sequence && key.sequence.length === 1 && !key.ctrl && !key.meta) {
+          appState.setMessageInput(state.messageInput + key.sequence)
+        }
       }
     }
 

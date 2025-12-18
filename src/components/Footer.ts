@@ -26,13 +26,23 @@ export function Footer() {
       { key: "n", label: "New Session" },
       { key: "2", label: "Chats" }
     )
-  } else if (state.currentView === "chats" || state.currentView === "conversation") {
+  } else if (state.currentView === "chats") {
     hints.push(
       { key: "↑↓", label: "Navigate" },
       { key: "Enter", label: "Open Chat" },
-      { key: "Tab", label: "Switch Icon" },
+      { key: "Esc", label: "Back" },
       { key: "1", label: "Sessions" }
     )
+  } else if (state.currentView === "conversation") {
+    if (state.inputMode) {
+      hints.push({ key: "i", label: "Typing..." }, { key: "Esc", label: "Cancel" })
+    } else {
+      hints.push(
+        { key: "↑↓", label: "Scroll" },
+        { key: "i", label: "Type Message" },
+        { key: "Esc", label: "Back to Chats" }
+      )
+    }
   }
 
   // Always available

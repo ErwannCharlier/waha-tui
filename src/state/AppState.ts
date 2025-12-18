@@ -19,6 +19,7 @@ export interface AppState {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   qrCodeMatrix: any | null // QRCode type from qrcode library
   messages: Map<string, WAMessage[]>
+  contactsCache: Map<string, string> // Maps contact ID to name
   connectionStatus: "connected" | "connecting" | "disconnected" | "error"
   errorMessage: string | null
 
@@ -27,6 +28,11 @@ export interface AppState {
   activeIcon: ActiveIcon
   searchQuery: string
   messageInput: string
+
+  // Conversation view state
+  scrollPosition: number
+  inputMode: boolean
+  isSending: boolean
 
   // Keyboard navigation state
   selectedSessionIndex: number
@@ -42,6 +48,7 @@ class StateManager {
     chats: [],
     qrCodeMatrix: null,
     messages: new Map(),
+    contactsCache: new Map(),
     connectionStatus: "disconnected",
     errorMessage: null,
 
@@ -50,6 +57,11 @@ class StateManager {
     activeIcon: "chats",
     searchQuery: "",
     messageInput: "",
+
+    // Conversation view state
+    scrollPosition: 0,
+    inputMode: false,
+    isSending: false,
 
     // Keyboard navigation
     selectedSessionIndex: 0,
@@ -129,6 +141,30 @@ class StateManager {
 
   setSelectedChatIndex(index: number): void {
     this.setState({ selectedChatIndex: index })
+  }
+
+  setMessageInput(text: string): void {
+    this.setState({ messageInput: text })
+  }
+
+  setScrollPosition(position: number): void {
+    this.setState({ scrollPosition: position })
+  }
+
+  setInputMode(enabled: boolean): void {
+    this.setState({ inputMode: enabled })
+  }
+
+  setIsSending(status: boolean): void {
+    this.setState({ isSending: status })
+  }
+
+  setContactsCache(contacts: Map<string, string>): void {
+    this.setState({ contactsCache: contacts })
+  }
+
+  getContactName(contactId: string): string | undefined {
+    return this.state.contactsCache.get(contactId)
   }
 }
 

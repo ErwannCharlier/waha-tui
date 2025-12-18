@@ -6,16 +6,13 @@
 
 import { Box } from "@opentui/core"
 import { appState } from "../state/AppState"
-import { WhatsAppTheme, Layout } from "../config/theme"
+import { WhatsAppTheme } from "../config/theme"
 import { IconSidebar } from "./IconSidebar"
 import { ChatsView } from "./ChatsView"
+import { ConversationView } from "./ConversationView"
 
 export function MainLayout() {
   const state = appState.getState()
-
-  // Calculate chat list width based on terminal size
-  // Will be implemented when we have access to terminal dimensions
-  const chatListWidth = Layout.chatListMinWidth
 
   return Box(
     {
@@ -29,44 +26,31 @@ export function MainLayout() {
     // Icon Sidebar (left, 8 chars wide)
     IconSidebar(),
 
-    // Chat List (middle, 30-40 chars)
+    // Chat List (middle, responsive width)
     Box(
       {
-        width: chatListWidth,
-        height: "auto",
+        width: state.currentView === "conversation" ? 35 : undefined,
+        flexGrow: state.currentView === "conversation" ? 0 : 1,
+        flexShrink: state.currentView === "conversation" ? 0 : 1,
         flexDirection: "column",
-        flexGrow: 0,
-        flexShrink: 0,
         backgroundColor: WhatsAppTheme.panelDark,
         border: true,
         borderColor: WhatsAppTheme.borderColor,
       },
-      // ChatsView will be rendered here
-      state.activeIcon === "chats" ? ChatsView() : Box({}, [])
+      ChatsView()
     ),
 
-    // Main Chat Window (right, flexible)
-    Box(
-      {
-        width: "auto",
-        height: "auto",
-        flexDirection: "column",
-        flexGrow: 1,
-        flexShrink: 1,
-        backgroundColor: WhatsAppTheme.deepDark,
-      },
-      // ChatWindow will be rendered here when we create it
-      // For now, placeholder
-      Box(
-        {
-          width: "auto",
-          height: "auto",
-          justifyContent: "center",
-          alignItems: "center",
-          flexGrow: 1,
-        }
-        // Placeholder text
-      )
-    )
+    // Conversation View (right, shown when chat selected)
+    ...(state.currentView === "conversation"
+      ? [
+          Box(
+            {
+              flexGrow: 1,
+              flexShrink: 1,
+            },
+            ConversationView()
+          ),
+        ]
+      : [])
   )
 }
