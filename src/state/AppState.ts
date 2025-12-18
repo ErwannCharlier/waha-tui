@@ -7,6 +7,9 @@ import type { SessionDTO, ChatSummary, WAMessage } from "@muhammedaksam/waha-nod
 
 export type ViewType = "sessions" | "chats" | "conversation" | "settings" | "qr"
 
+export type ActiveFilter = "all" | "unread" | "favorites" | "groups"
+export type ActiveIcon = "chats" | "status" | "profile" | "settings"
+
 export interface AppState {
   currentView: ViewType
   currentSession: string | null
@@ -18,6 +21,12 @@ export interface AppState {
   messages: Map<string, WAMessage[]>
   connectionStatus: "connected" | "connecting" | "disconnected" | "error"
   errorMessage: string | null
+
+  // UI State for WhatsApp-style layout
+  activeFilter: ActiveFilter
+  activeIcon: ActiveIcon
+  searchQuery: string
+  messageInput: string
 }
 
 class StateManager {
@@ -31,6 +40,12 @@ class StateManager {
     messages: new Map(),
     connectionStatus: "disconnected",
     errorMessage: null,
+
+    // UI State
+    activeFilter: "all",
+    activeIcon: "chats",
+    searchQuery: "",
+    messageInput: "",
   }
 
   private listeners: Array<(state: AppState) => void> = []

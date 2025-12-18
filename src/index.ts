@@ -3,7 +3,7 @@
  * WAHA TUI - Terminal User Interface for WhatsApp via WAHA
  */
 
-import { Box, createCliRenderer, Text, TextAttributes, ASCIIFont } from "@opentui/core"
+import { Box, createCliRenderer, Text, ASCIIFont } from "@opentui/core"
 import {
   loadConfig,
   saveConfig,
@@ -15,10 +15,12 @@ import { validateConfig } from "./config/schema"
 import { initializeClient, testConnection } from "./client"
 import { appState } from "./state/AppState"
 import { StatusBar } from "./components/StatusBar"
+import { Footer } from "./components/Footer"
 import { SessionsView, loadSessions } from "./views/SessionsView"
-import { ChatsView, loadChats } from "./views/ChatsView"
+import { loadChats } from "./views/ChatsView"
 import { createNewSession } from "./views/SessionCreate"
 import { QRCodeView } from "./views/QRCodeView"
+import { MainLayout } from "./views/MainLayout"
 import type { WahaTuiConfig } from "./config/schema"
 import { initDebug, debugLog } from "./utils/debug"
 
@@ -118,6 +120,18 @@ async function main() {
   // Load initial sessions
   await loadSessions()
 
+  // Auto-switch to chats view if we have a working session
+  const state = appState.getState()
+  if (state.sessions.length > 0) {
+    const workingSession = state.sessions.find((s) => s.status === "WORKING")
+    if (workingSession) {
+      debugLog("App", `Found working session: ${workingSession.name}, switching to chats view`)
+      appState.setCurrentSession(workingSession.name)
+      appState.setCurrentView("chats")
+      await loadChats(workingSession.name)
+    }
+  }
+
   // Create renderer
   const renderer = await createCliRenderer({ exitOnCtrlC: true })
 
@@ -147,26 +161,20 @@ async function main() {
 
         Box({ height: 1 }),
 
-        // Main Content Area
+        // Main Content Area - WhatsApp Layout or Legacy Views
         Box(
           { flexGrow: 1 },
           state.currentView === "sessions"
             ? SessionsView()
-            : state.currentView === "chats"
-              ? ChatsView()
-              : state.currentView === "qr"
-                ? QRCodeView()
+            : state.currentView === "qr"
+              ? QRCodeView()
+              : state.currentView === "chats" || state.currentView === "conversation"
+                ? MainLayout()
                 : Text({ content: `View: ${state.currentView} (Coming soon)` })
         ),
 
-        // Footer with shortcuts
-        Box(
-          { height: 2, flexDirection: "column", border: true, paddingTop: 1, paddingLeft: 1 },
-          Text({
-            content: "q: Quit | r: Refresh | n: New Session | 1: Sessions | 2: Chats",
-            attributes: TextAttributes.DIM,
-          })
-        )
+        // Footer with styled keyboard hints
+        Footer()
       )
     )
   }
