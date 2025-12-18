@@ -315,43 +315,51 @@ export function ConversationView() {
     messageInputComponent.setText(state.messageInput)
   }
 
-  // Initialize scrollbar (only shown when content exceeds visible area)
-  if (!inputScrollBar) {
-    inputScrollBar = new ScrollBarRenderable(renderer, {
-      id: "input-scrollbar",
-      orientation: "vertical",
-      width: 1,
-      height: "100%",
-      showArrows: false,
-      trackOptions: {
-        foregroundColor: WhatsAppTheme.textSecondary, // Thumb color
-        backgroundColor: WhatsAppTheme.panelLight, // Track color
-      },
-    })
-    // Start hidden - only show when content overflows
-    inputScrollBar.visible = false
-  }
-
   // Update scrollbar state from textarea
   const lineCount = messageInputComponent.lineCount
   const viewportSize = MAX_INPUT_LINES
   const needsScrollbar = lineCount > viewportSize
 
-  if (inputScrollBar) {
-    inputScrollBar.visible = needsScrollbar
-    if (needsScrollbar) {
-      inputScrollBar.scrollSize = lineCount
-      inputScrollBar.viewportSize = viewportSize
-      inputScrollBar.scrollPosition = messageInputComponent.scrollY
-    }
+  // Dynamically manage scrollbar - add/remove based on need
+  const children = inputContainer.getChildren()
+  const hasTextarea = children.some((c) => c.id === "message-input")
+  const hasScrollbar = children.some((c) => c.id === "input-scrollbar")
+
+  // Add textarea if not present
+  if (!hasTextarea) {
+    inputContainer.add(messageInputComponent)
   }
 
-  // Clear children and add input + scrollbar (idempotent check)
-  const children = inputContainer.getChildren()
-  if (children.length === 0) {
-    inputContainer.add(messageInputComponent)
-    if (inputScrollBar) {
+  // Manage scrollbar visibility dynamically
+  if (needsScrollbar) {
+    // Create scrollbar if it doesn't exist
+    if (!inputScrollBar) {
+      inputScrollBar = new ScrollBarRenderable(renderer, {
+        id: "input-scrollbar",
+        orientation: "vertical",
+        width: 1,
+        height: "100%",
+        flexShrink: 0,
+        marginLeft: 1,
+        showArrows: false,
+        trackOptions: {
+          foregroundColor: WhatsAppTheme.textSecondary,
+          backgroundColor: WhatsAppTheme.panelLight,
+        },
+      })
+    }
+    // Add scrollbar if not already added
+    if (!hasScrollbar && inputScrollBar) {
       inputContainer.add(inputScrollBar)
+    }
+    // Update scrollbar state
+    inputScrollBar.scrollSize = lineCount
+    inputScrollBar.viewportSize = viewportSize
+    inputScrollBar.scrollPosition = messageInputComponent.scrollY
+  } else {
+    // Remove scrollbar if present and not needed
+    if (hasScrollbar && inputScrollBar) {
+      inputContainer.remove("input-scrollbar")
     }
   }
 
