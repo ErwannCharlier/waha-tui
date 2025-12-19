@@ -6,6 +6,7 @@
 import { Box, Text, TextNodeRenderable } from "@opentui/core"
 import { WhatsAppTheme } from "../config/theme"
 import { appState } from "../state/AppState"
+import { getVersion } from "../config/version"
 
 interface KeyHint {
   key: string
@@ -94,7 +95,7 @@ export function Footer() {
     hintText,
     // Version (right)
     Text({
-      content: "waha-tui v0.1.0",
+      content: `waha-tui ${getVersion()}`,
       fg: WhatsAppTheme.textTertiary,
     })
   )

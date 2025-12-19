@@ -7,6 +7,8 @@
  * - ~/.waha-tui/config.json - Metadata (version, timestamps, settings)
  */
 
+import { VersionInfo } from "./version"
+
 /**
  * Environment secrets stored in .env file
  */
@@ -35,7 +37,7 @@ export const DEFAULT_ENV: WahaTuiEnv = {
 }
 
 export const DEFAULT_CONFIG_META: Partial<WahaTuiConfigMeta> = {
-  version: "1.0.0",
+  version: VersionInfo.version,
 }
 
 export function validateConfig(config: Partial<WahaTuiConfig>): string[] {
