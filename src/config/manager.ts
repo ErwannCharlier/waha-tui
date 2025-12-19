@@ -14,6 +14,7 @@ import { join } from "node:path"
 import type { WahaTuiConfig, WahaTuiEnv, WahaTuiConfigMeta } from "./schema"
 import { DEFAULT_ENV, DEFAULT_CONFIG_META } from "./schema"
 import { debugLog } from "../utils/debug"
+import { VersionInfo } from "./version"
 
 const CONFIG_DIR_NAME = ".waha-tui"
 const ENV_FILE_NAME = ".env"
@@ -130,6 +131,15 @@ async function loadConfigMeta(): Promise<WahaTuiConfigMeta | null> {
     const content = await readFile(configPath, "utf-8")
     const config = JSON.parse(content) as WahaTuiConfigMeta
     debugLog("Config", `Loaded config version ${config.version}`)
+
+    // Auto-update if version differs from current package version
+    if (config.version !== VersionInfo.version) {
+      debugLog("Config", `Updating config version from ${config.version} to ${VersionInfo.version}`)
+      config.version = VersionInfo.version
+      config.updatedAt = new Date().toISOString()
+      await saveConfigMeta(config)
+    }
+
     return config
   } catch (error) {
     debugLog("Config", `Failed to load config: ${error}`)

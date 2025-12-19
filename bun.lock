@@ -5,7 +5,7 @@
     "": {
       "name": "react",
       "dependencies": {
-        "@muhammedaksam/waha-node": "^2025.12.2",
+        "@muhammedaksam/waha-node": "^2025.12.2-dev.1",
         "@opentui/core": "^0.1.61",
         "qrcode": "^1.5.4",
       },
@@ -109,7 +109,7 @@
 
     "@jimp/utils": ["@jimp/utils@1.6.0", "", { "dependencies": { "@jimp/types": "1.6.0", "tinycolor2": "^1.6.0" } }, "sha512-gqFTGEosKbOkYF/WFj26jMHOI5OH2jeP1MmC/zbK6BF6VJBf8rIC5898dPfSzZEbSA0wbbV5slbntWVc5PKLFA=="],
 
-    "@muhammedaksam/waha-node": ["@muhammedaksam/waha-node@2025.12.2", "", { "dependencies": { "axios": "^1.13.2" } }, "sha512-89tIL8xONlnqDUGdXj9Yai0n0Bb6b89p5ExA1p7T57f04piAPsW11UNSrIu0upnK9gOILDZzW8v+c3bcImvOgQ=="],
+    "@muhammedaksam/waha-node": ["@muhammedaksam/waha-node@2025.12.2-dev.1", "", { "dependencies": { "axios": "^1.13.2" } }, "sha512-RHBQhdyXhU6SGwlo2PzUgyHGnHFwMibLddeMHlIwHNJD+jkTgmTIRF/MwjNyA17HRSXpwQSN0MQL8m0rxOWBag=="],
 
     "@opentui/core": ["@opentui/core@0.1.61", "", { "dependencies": { "bun-ffi-structs": "0.1.2", "diff": "8.0.2", "jimp": "1.6.0", "yoga-layout": "3.2.1" }, "optionalDependencies": { "@dimforge/rapier2d-simd-compat": "^0.17.3", "@opentui/core-darwin-arm64": "0.1.61", "@opentui/core-darwin-x64": "0.1.61", "@opentui/core-linux-arm64": "0.1.61", "@opentui/core-linux-x64": "0.1.61", "@opentui/core-win32-arm64": "0.1.61", "@opentui/core-win32-x64": "0.1.61", "bun-webgpu": "0.1.4", "planck": "^1.4.2", "three": "0.177.0" }, "peerDependencies": { "web-tree-sitter": "0.25.10" } }, "sha512-WrVbdki0tnsgmWCB3Iix6n8eXGXUheTqr/tcnBN7gLA/TqT9udcX+DW3/qRdgtTNJS1sVBVeuwSTYU3eqDSUJQ=="],
 

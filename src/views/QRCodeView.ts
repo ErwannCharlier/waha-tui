@@ -231,13 +231,23 @@ export async function showQRCode(name: string): Promise<void> {
   const client = getClient()
 
   // Helper function to wait for session to be ready (SCAN_QR_CODE state)
+  // Uses sessionsControllerList to find the session, as GET may return 404 for newly created sessions
   const waitForSessionReady = async (maxWaitMs: number = 30000): Promise<boolean> => {
     const startTime = Date.now()
     const pollInterval = 1000 // 1 second
 
     while (Date.now() - startTime < maxWaitMs) {
       try {
-        const { data: session } = await client.sessions.sessionsControllerGet(name)
+        // Use list endpoint to find session - more reliable for newly created sessions
+        const { data: sessions } = await client.sessions.sessionsControllerList({ all: true })
+        const session = sessions.find((s) => s.name === name)
+
+        if (!session) {
+          debugLog("QR", "Session not found in list yet, waiting...")
+          await new Promise((resolve) => setTimeout(resolve, pollInterval))
+          continue
+        }
+
         debugLog("QR", `Waiting for session... status: ${session.status}`)
 
         if (session.status === "SCAN_QR_CODE") {
@@ -254,8 +264,8 @@ export async function showQRCode(name: string): Promise<void> {
           debugLog("QR", "Session failed while waiting")
           return false
         }
-      } catch {
-        debugLog("QR", "Session not found yet, waiting...")
+      } catch (error) {
+        debugLog("QR", `Error checking sessions: ${error}`)
       }
 
       // Wait before next poll
@@ -293,7 +303,7 @@ export async function showQRCode(name: string): Promise<void> {
       }
 
       // Create fresh session
-      await client.sessions.sessionsControllerCreate({ name })
+      await client.sessions.sessionsControllerCreate({ name, start: true })
       debugLog("QR", "Created fresh session, waiting for it to be ready...")
       needsWait = true
     } else if (session.status === "STARTING") {
@@ -312,7 +322,7 @@ export async function showQRCode(name: string): Promise<void> {
     // Session doesn't exist, create it
     debugLog("QR", `Session check failed, creating new session: ${error}`)
     try {
-      await client.sessions.sessionsControllerCreate({ name })
+      await client.sessions.sessionsControllerCreate({ name, start: true })
       debugLog("QR", "Created new session, waiting for it to be ready...")
       needsWait = true
     } catch {

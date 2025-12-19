@@ -47,6 +47,7 @@ export async function createNewSession(sessionName: string = "default"): Promise
     // Create new session
     const createRequest: SessionCreateRequest = {
       name,
+      start: true,
     }
 
     const { data: session } = await client.sessions.sessionsControllerCreate(createRequest)
