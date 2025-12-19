@@ -243,7 +243,10 @@ export function formatChatTimestamp(timestamp: number): string {
 /**
  * Format message acknowledgment status with color
  */
-export function formatAckStatus(ack: number): string | TextChunk {
+export function formatAckStatus(
+  ack: number,
+  { side = "left", disableSpace = false }: { side?: "left" | "right"; disableSpace?: boolean }
+): string | TextChunk {
   // Enum mapping based on WAHA Node definitions:
   // -1: ERROR
   // 0: PENDING
@@ -253,22 +256,25 @@ export function formatAckStatus(ack: number): string | TextChunk {
   // 4: PLAYED (Played)
 
   const readColor = WhatsAppTheme.blue
+  const space = disableSpace ? "" : " "
 
   switch (ack) {
     case -1: // ERROR
     case 0: // PENDING
-      return " ○"
+      return side === "left" ? `${space}○` : `○${space}`
     case 1: // SERVER
-      return ` ${Icons.checkSingle}`
+      return side === "left" ? `${space}${Icons.checkSingle}` : `${Icons.checkSingle}${space}`
     case 2: // DEVICE
-      return ` ${Icons.checkDouble}`
+      return side === "left" ? `${space}${Icons.checkDouble}` : `${Icons.checkDouble}${space}`
     case 3: // READ
     case 4: // PLAYED
       // Use fg() directly to return a TextChunk for colored output
       // Note: This requires the consumer to use t`` template tag (e.g. ConversationView)
       // We prepend a space to the icon before styling or handle it in the consumer.
       // fg() applies to the text passed.
-      return fg(readColor)(` ${Icons.checkDouble}`)
+      return side === "left"
+        ? fg(readColor)(`${space}${Icons.checkDouble}`)
+        : fg(readColor)(`${Icons.checkDouble}${space}`)
     default:
       return ""
   }

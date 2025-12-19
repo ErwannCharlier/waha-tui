@@ -294,23 +294,25 @@ class ChatListManager {
     const messageRow = new BoxRenderable(renderer, {
       id: `message-row-${index}`,
       flexDirection: "row",
-      justifyContent: "space-between",
+      gap: 1,
     })
-
-    const messageText = new TextRenderable(renderer, {
-      content: truncate(lastMessageText),
-      fg: WhatsAppTheme.textSecondary,
-    })
-    messageRow.add(messageText)
 
     // Add Ack Status if message is from me
     if (preview.isFromMe) {
       messageRow.add(
         new TextRenderable(renderer, {
-          content: t`${formatAckStatus(preview.ack)}`,
+          content: t`${formatAckStatus(preview.ack, { side: "right", disableSpace: true })}`,
         })
       )
     }
+
+    const messageText = new TextRenderable(renderer, {
+      content: truncate(lastMessageText),
+      fg: WhatsAppTheme.textSecondary,
+    })
+
+    messageRow.add(messageText)
+
     chatInfo.add(messageRow)
 
     chatRow.add(chatInfo)

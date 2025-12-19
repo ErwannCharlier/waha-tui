@@ -545,7 +545,7 @@ function renderMessage(
 
   // Build message bubble content with WhatsApp-like layout
   const messageText = message.body || "(media)"
-  const timestampText = t`${timestamp}${isFromMe ? formatAckStatus(message.ack) : ""}`
+  const timestampText = t`${timestamp}${isFromMe ? formatAckStatus(message.ack, {}) : ""}`
 
   // Create outer row container
   const row = new BoxRenderable(renderer, {
