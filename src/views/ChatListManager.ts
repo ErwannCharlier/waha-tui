@@ -22,7 +22,7 @@ import {
 } from "../utils/formatters"
 import { debugLog } from "../utils/debug"
 import { appState } from "../state/AppState"
-import { loadMessages, loadContacts } from "./ConversationView"
+import { loadMessages, loadContacts, destroyConversationScrollBox } from "./ConversationView"
 import { ROW_HEIGHT } from "../utils/chatListScroll"
 
 interface ChatRowData {
@@ -88,6 +88,9 @@ class ChatListManager {
     // CASE 1: exact same content (no changes)
     if (this.scrollBox && newContentHash === this.currentChatsHash) {
       debugLog("ChatListManager", "Using cached chat list (exact match)")
+      // Still need to update selection/active styling as those may have changed
+      const state = appState.getState()
+      this.updateSelectionAndActive(state.selectedChatIndex, state.currentChatId, chats)
       return this.scrollBox
     }
 
@@ -188,6 +191,10 @@ class ChatListManager {
       }
     }
 
+    // Capture index and chat reference for click handler closure
+    const chatIndex = index
+    const chatRef = chat
+
     // Create chat row box
     // Use simple ID to enable in-place updates (no hash in ID)
     const rowId = `chat-row-${index}`
@@ -204,26 +211,32 @@ class ChatListManager {
         : isCurrentChat
           ? WhatsAppTheme.activeBg
           : WhatsAppTheme.panelDark,
-    })
+      // Handle click (mouse down) to open chat
+      onMouse: (event) => {
+        if (event.type === "down") {
+          const currentState = appState.getState()
+          if (chatRef && currentState.currentSession) {
+            // Extract chat ID properly (handle _serialized property)
+            const chatId =
+              typeof chatRef.id === "string"
+                ? chatRef.id
+                : (chatRef.id as { _serialized: string })._serialized
 
-    // Handle click to open chat
-    const chatIndex = index // Capture for closure
-    chatRow.on("click", async () => {
-      const currentState = appState.getState()
-      appState.setSelectedChatIndex(chatIndex)
-      const selectedChat = currentState.chats[chatIndex]
-      if (selectedChat && currentState.currentSession) {
-        appState.setCurrentView("conversation")
-        appState.setCurrentChat(selectedChat.id)
+            debugLog("ChatListManager", `Clicked chat: ${chatRef.name || chatId}`)
 
-        // When switching chats, we want to start polling for messages immediately
-        // BUT we need to be careful not to create circular dependency imports
-        // PollingService imports ConversationView, so ConversationView/ChatListManager shouldn't import PollingService if possible
-        // Ideally PollingService observes state changes.
+            // Destroy old scroll box before loading new messages
+            destroyConversationScrollBox()
 
-        await loadMessages(currentState.currentSession, selectedChat.id)
-        await loadContacts(currentState.currentSession)
-      }
+            // Set current chat first (this changes view to "conversation")
+            appState.setCurrentChat(chatId)
+            appState.setSelectedChatIndex(chatIndex)
+
+            // Load contacts and messages
+            loadContacts(currentState.currentSession)
+            loadMessages(currentState.currentSession, chatId)
+          }
+        }
+      },
     })
 
     // Avatar
@@ -373,6 +386,44 @@ class ChatListManager {
       // Actually, since we need to update timestamp and ack, maybe we SHOULD destroy children of specific containers and re-add them?
       // Or better, update ChatRowData interface to include them.
     }
+  }
+
+  /**
+   * Update selection and active (current chat) highlighting for all rows
+   * This handles both selectedChatIndex and currentChatId changes
+   */
+  private updateSelectionAndActive(
+    newSelectedIndex: number,
+    currentChatId: string | null,
+    chats: ChatSummary[]
+  ): void {
+    if (!this.scrollBox) return
+
+    // Update all rows to reflect current selection and active state
+    for (let index = 0; index < chats.length; index++) {
+      const rowData = this.chatRows.get(index)
+      if (!rowData) continue
+
+      const chat = chats[index]
+      const chatId =
+        typeof chat.id === "string" ? chat.id : (chat.id as { _serialized: string })._serialized
+
+      const isSelected = index === newSelectedIndex
+      const isCurrentChat = currentChatId === chatId
+
+      // Update background color
+      rowData.box.backgroundColor = isSelected
+        ? WhatsAppTheme.selectedBg
+        : isCurrentChat
+          ? WhatsAppTheme.activeBg
+          : WhatsAppTheme.panelDark
+
+      // Update text attributes
+      rowData.avatarText.attributes = isSelected ? TextAttributes.BOLD : TextAttributes.NONE
+      rowData.nameText.attributes = isSelected ? TextAttributes.BOLD : TextAttributes.NONE
+    }
+
+    this.currentSelectedIndex = newSelectedIndex
   }
 
   /**

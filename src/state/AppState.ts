@@ -47,6 +47,7 @@ export interface AppState {
   qrCodeMatrix: any | null // QRCode type from qrcode library
   messages: Map<string, WAMessage[]>
   contactsCache: Map<string, string> // Maps contact ID to name
+  allContacts: Map<string, string> // Full phonebook contacts for search
   connectionStatus: "connected" | "connecting" | "disconnected" | "error"
   errorMessage: string | null
   currentChatPresence: WAHAChatPresences | null
@@ -58,6 +59,7 @@ export interface AppState {
   activeFilter: ActiveFilter
   activeIcon: ActiveIcon
   searchQuery: string
+  showingArchivedChats: boolean // Toggle to show archived chats instead of main list
   messageInput: string
 
   // Conversation view state
@@ -90,6 +92,7 @@ class StateManager {
     qrCodeMatrix: null,
     messages: new Map(),
     contactsCache: new Map(),
+    allContacts: new Map(),
     connectionStatus: "disconnected",
     errorMessage: null,
     currentChatPresence: null,
@@ -101,6 +104,7 @@ class StateManager {
     activeFilter: "all",
     activeIcon: "chats",
     searchQuery: "",
+    showingArchivedChats: false,
     messageInput: "",
 
     // Conversation view state
@@ -237,6 +241,10 @@ class StateManager {
     this.setState({ contactsCache })
   }
 
+  setAllContacts(allContacts: Map<string, string>): void {
+    this.setState({ allContacts })
+  }
+
   getContactName(contactId: string): string | undefined {
     return this.state.contactsCache.get(contactId)
   }
@@ -251,6 +259,33 @@ class StateManager {
 
   setMyProfile(myProfile: MyProfile | null): void {
     this.setState({ myProfile })
+  }
+
+  setActiveFilter(activeFilter: ActiveFilter): void {
+    this.setState({
+      activeFilter,
+      selectedChatIndex: 0,
+      chatListScrollOffset: 0,
+      lastChangeType: "data",
+    })
+  }
+
+  setSearchQuery(searchQuery: string): void {
+    this.setState({
+      searchQuery,
+      selectedChatIndex: 0,
+      chatListScrollOffset: 0,
+      lastChangeType: "data",
+    })
+  }
+
+  setShowingArchivedChats(showingArchivedChats: boolean): void {
+    this.setState({
+      showingArchivedChats,
+      selectedChatIndex: 0,
+      chatListScrollOffset: 0,
+      lastChangeType: "data",
+    })
   }
 }
 

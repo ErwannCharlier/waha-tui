@@ -7,6 +7,7 @@ import { getClient } from "../client"
 import { appState } from "../state/AppState"
 import type { SessionCreateRequest } from "@muhammedaksam/waha-node"
 import { debugLog } from "../utils/debug"
+import { showQRCode } from "./QRCodeView"
 
 export async function createNewSession(sessionName: string = "default"): Promise<void> {
   try {
@@ -31,7 +32,6 @@ export async function createNewSession(sessionName: string = "default"): Promise
         console.log(`✅ Session exists and needs QR scan`)
 
         // Show QR code in TUI
-        const { showQRCode } = await import("../views/QRCodeView")
         await showQRCode(name)
       } else {
         console.log(`✅ Session already exists with status: ${existingSession.status}`)
@@ -57,7 +57,6 @@ export async function createNewSession(sessionName: string = "default"): Promise
 
     if (session.status === "SCAN_QR_CODE") {
       // Show QR code in TUI
-      const { showQRCode } = await import("../views/QRCodeView")
       await showQRCode(session.name)
     }
 

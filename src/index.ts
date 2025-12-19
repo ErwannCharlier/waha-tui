@@ -11,7 +11,7 @@ import { appState } from "./state/AppState"
 import { Footer } from "./components/Footer"
 import { deleteSession, logoutSession, SessionsView } from "./views/SessionsView"
 import { loadSessions } from "./views/SessionsView"
-import { loadChats } from "./views/ChatsView"
+import { loadChats, focusSearchInput, blurSearchInput, clearSearchInput } from "./views/ChatsView"
 import {
   loadMessages,
   loadContacts,
@@ -28,9 +28,14 @@ import { MainLayout } from "./views/MainLayout"
 import type { WahaTuiConfig } from "./config/schema"
 import { initDebug, debugLog } from "./utils/debug"
 import { calculateChatListScrollOffset } from "./utils/chatListScroll"
+import { filterChats, isArchived } from "./utils/filterChats"
 import { pollingService } from "./services/PollingService"
 import { ConfigView } from "./views/ConfigView"
 import type { CliRenderer } from "@opentui/core"
+import { setRenderer } from "./state/RendererContext"
+import { showQRCode } from "./views/QRCodeView"
+import { chatListManager } from "./views/ChatListManager"
+import { getClient } from "./client"
 
 /**
  * Run the configuration wizard using the TUI
@@ -130,7 +135,6 @@ async function main() {
   const renderer = await createCliRenderer({ exitOnCtrlC: true })
 
   // Set renderer context for imperative API usage
-  const { setRenderer } = await import("./state/RendererContext")
   setRenderer(renderer)
 
   let config: WahaTuiConfig | null = null
@@ -192,7 +196,7 @@ async function main() {
 
   // Fetch WAHA version and tier info
   try {
-    const client = (await import("./client")).getClient()
+    const client = getClient()
     const { data: versionInfo } = await client.observability.versionControllerGet()
     if (versionInfo?.tier) {
       appState.setState({ wahaTier: versionInfo.tier })
@@ -225,12 +229,8 @@ async function main() {
     appState.setCurrentSession(DEFAULT_SESSION)
     appState.setCurrentView("qr")
     // Trigger QR code loading
-    const { showQRCode } = await import("./views/QRCodeView")
     await showQRCode(DEFAULT_SESSION)
   }
-
-  // Import ChatListManager for optimized rendering
-  const { chatListManager } = await import("./views/ChatListManager")
 
   // Set up reactive rendering
   function renderApp(forceRebuild: boolean = false) {
@@ -335,6 +335,52 @@ async function main() {
       }
     }
 
+    // Tab/Shift+Tab to cycle through filters in chats view
+    if (key.name === "tab" && state.currentView === "chats" && !state.inputMode) {
+      const filters: Array<"all" | "unread" | "favorites" | "groups"> = [
+        "all",
+        "unread",
+        "favorites",
+        "groups",
+      ]
+      const currentIndex = filters.indexOf(state.activeFilter)
+
+      if (key.shift) {
+        // Shift+Tab: previous filter
+        const prevIndex = currentIndex === 0 ? filters.length - 1 : currentIndex - 1
+        debugLog("Keyboard", `Filter: cycling backward to ${filters[prevIndex]}`)
+        appState.setActiveFilter(filters[prevIndex])
+      } else {
+        // Tab: next filter
+        const nextIndex = (currentIndex + 1) % filters.length
+        debugLog("Keyboard", `Filter: cycling forward to ${filters[nextIndex]}`)
+        appState.setActiveFilter(filters[nextIndex])
+      }
+      return
+    }
+
+    // Forward slash (/) to focus search in chats view
+    if (key.name === "/" && state.currentView === "chats" && !state.inputMode) {
+      debugLog("Keyboard", "Focusing search input")
+      focusSearchInput()
+      return
+    }
+
+    // Ctrl+F to focus search in chats view (alternative shortcut)
+    if (key.name === "f" && key.ctrl && state.currentView === "chats" && !state.inputMode) {
+      debugLog("Keyboard", "Focusing search input (Ctrl+F)")
+      focusSearchInput()
+      return
+    }
+
+    // Helper to determine the current list of chats being displayed
+    const getCurrentFilteredChats = () => {
+      if (state.showingArchivedChats) {
+        return state.chats.filter(isArchived)
+      }
+      return filterChats(state.chats, state.activeFilter, state.searchQuery)
+    }
+
     // Arrow key navigation
     if (key.name === "up") {
       if (state.currentView === "sessions" && state.sessions.length > 0) {
@@ -345,13 +391,16 @@ async function main() {
         )
         appState.setSelectedSessionIndex(newIndex)
       } else if (state.currentView === "chats" && state.chats.length > 0) {
+        // Use filtered chats for navigation bounds
+        const filteredChats = getCurrentFilteredChats()
+        if (filteredChats.length === 0) return
         const newIndex = Math.max(0, state.selectedChatIndex - 1)
         debugLog("Keyboard", `Chats: UP - moving from ${state.selectedChatIndex} to ${newIndex}`)
         // Calculate new scroll offset
         const newScrollOffset = calculateChatListScrollOffset(
           newIndex,
           state.chatListScrollOffset,
-          state.chats.length
+          filteredChats.length
         )
         appState.setState({
           selectedChatIndex: newIndex,
@@ -377,13 +426,16 @@ async function main() {
         )
         appState.setSelectedSessionIndex(newIndex)
       } else if (state.currentView === "chats" && state.chats.length > 0) {
-        const newIndex = Math.min(state.chats.length - 1, state.selectedChatIndex + 1)
+        // Use filtered chats for navigation bounds
+        const filteredChats = getCurrentFilteredChats()
+        if (filteredChats.length === 0) return
+        const newIndex = Math.min(filteredChats.length - 1, state.selectedChatIndex + 1)
         debugLog("Keyboard", `Chats: DOWN - from ${state.selectedChatIndex} to ${newIndex}`)
         // Calculate new scroll offset
         const newScrollOffset = calculateChatListScrollOffset(
           newIndex,
           state.chatListScrollOffset,
-          state.chats.length
+          filteredChats.length
         )
         appState.setState({
           selectedChatIndex: newIndex,
@@ -411,7 +463,15 @@ async function main() {
           pollingService.start(selectedSession.name)
         }
       } else if (state.currentView === "chats" && state.chats.length > 0) {
-        const selectedChat = state.chats[state.selectedChatIndex]
+        // Handle search input focus
+        if (state.inputMode) {
+          appState.setInputMode(false)
+          blurSearchInput()
+        }
+
+        // Use filtered chats to get the correct selected chat
+        const filteredChats = getCurrentFilteredChats()
+        const selectedChat = filteredChats[state.selectedChatIndex]
         if (selectedChat && state.currentSession) {
           // ChatSummary.id is typed as string but runtime returns an object with _serialized
           const chatId =
@@ -453,12 +513,14 @@ async function main() {
         debugLog("Keyboard", `Sessions: END - jumping to last session (${lastIndex})`)
         appState.setSelectedSessionIndex(lastIndex)
       } else if (state.currentView === "chats" && state.chats.length > 0) {
-        const lastIndex = state.chats.length - 1
+        const filteredChats = getCurrentFilteredChats()
+        if (filteredChats.length === 0) return
+        const lastIndex = filteredChats.length - 1
         debugLog("Keyboard", `Chats: END - jumping to last chat (${lastIndex})`)
         const newScrollOffset = calculateChatListScrollOffset(
           lastIndex,
           state.chatListScrollOffset,
-          state.chats.length
+          filteredChats.length
         )
         appState.setState({
           selectedChatIndex: lastIndex,
@@ -472,6 +534,8 @@ async function main() {
     // PAGE UP key - jump up by viewport height (~12 chats)
     if (key.name === "pageup" || key.name === "left") {
       if (state.currentView === "chats" && state.chats.length > 0) {
+        const filteredChats = getCurrentFilteredChats()
+        if (filteredChats.length === 0) return
         const pageSize = 12
         const newIndex = Math.max(0, state.selectedChatIndex - pageSize)
         debugLog(
@@ -481,7 +545,7 @@ async function main() {
         const newScrollOffset = calculateChatListScrollOffset(
           newIndex,
           state.chatListScrollOffset,
-          state.chats.length
+          filteredChats.length
         )
         appState.setState({
           selectedChatIndex: newIndex,
@@ -498,8 +562,10 @@ async function main() {
     // PAGE DOWN key - jump down by viewport height (~12 chats)
     if (key.name === "pagedown" || key.name === "right") {
       if (state.currentView === "chats" && state.chats.length > 0) {
+        const filteredChats = getCurrentFilteredChats()
+        if (filteredChats.length === 0) return
         const pageSize = 12
-        const newIndex = Math.min(state.chats.length - 1, state.selectedChatIndex + pageSize)
+        const newIndex = Math.min(filteredChats.length - 1, state.selectedChatIndex + pageSize)
         debugLog(
           "Keyboard",
           `Chats: ${key.name.toUpperCase()} - jumping from ${state.selectedChatIndex} to ${newIndex} (page size: ${pageSize})`
@@ -507,7 +573,7 @@ async function main() {
         const newScrollOffset = calculateChatListScrollOffset(
           newIndex,
           state.chatListScrollOffset,
-          state.chats.length
+          filteredChats.length
         )
         appState.setState({
           selectedChatIndex: newIndex,
@@ -533,8 +599,27 @@ async function main() {
           appState.setCurrentChat(null)
         }
       } else if (state.currentView === "chats") {
-        appState.setCurrentView("sessions")
+        if (state.inputMode) {
+          // Exit search input mode
+          blurSearchInput()
+        } else if (state.showingArchivedChats) {
+          // Exit archived view
+          appState.setShowingArchivedChats(false)
+        } else if (state.searchQuery) {
+          // Clear search if there's a query
+          clearSearchInput()
+        } else {
+          // Go back to sessions
+          appState.setCurrentView("sessions")
+        }
         appState.setSelectedSessionIndex(0) // Reset session selection
+      }
+    }
+
+    // Ctrl+A / Meta+A - Toggle Archived View
+    if (key.name === "a" && (key.meta || key.ctrl)) {
+      if (state.currentView === "chats") {
+        appState.setShowingArchivedChats(!state.showingArchivedChats)
       }
     }
 

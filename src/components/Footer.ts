@@ -31,6 +31,9 @@ export function Footer() {
     hints.push(
       { key: "↑↓", label: "Navigate" },
       { key: "Enter", label: "Open Chat" },
+      { key: "Ctrl + F | /", label: "Search" },
+      { key: "Tab | Shift+Tab", label: "Filter" },
+      { key: "Ctrl + A | Meta + A", label: "Toggle Archived" },
       { key: "Esc", label: "Back" },
       { key: "1", label: "Sessions" }
     )
