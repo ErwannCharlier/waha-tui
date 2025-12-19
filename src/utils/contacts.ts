@@ -5,7 +5,6 @@
 
 import { getClient } from "../client"
 import { debugLog } from "./debug"
-import type { Contact } from "@muhammedaksam/waha-node"
 
 /**
  * Load all contacts from WAHA API
@@ -16,25 +15,30 @@ export async function loadAllContacts(session: string): Promise<Map<string, stri
 
   try {
     const client = getClient()
-    // The API returns Contact[] but types show void, so we'll cast it
+    // The API returns an array of contact objects
     const response = await client.contacts.contactsControllerGetAll({
       session,
       limit: 10000, // Get all contacts
       sortBy: "name",
     })
 
-    const contacts = response.data as unknown as Contact[]
+    // The actual API response format is different than the Contact interface
+    // It returns objects with { id, name, pushname, ... }
+    const contacts = response.data as unknown as Array<{
+      id: string
+      name?: string
+      pushname?: string
+      shortName?: string
+    }>
+
     const contactMap = new Map<string, string>()
 
     for (const contact of contacts) {
-      // Map whatsappId to fullName
-      if (contact.whatsappId && contact.fullName) {
-        // Normalize the whatsappId to include @c.us if not present
-        const normalizedId = contact.whatsappId.includes("@")
-          ? contact.whatsappId
-          : `${contact.whatsappId}@c.us`
+      // Use name, fallback to pushname, then shortName
+      const contactName = contact.name || contact.pushname || contact.shortName
 
-        contactMap.set(normalizedId, contact.fullName)
+      if (contact.id && contactName) {
+        contactMap.set(contact.id, contactName)
       }
     }
 
