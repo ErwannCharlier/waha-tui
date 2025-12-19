@@ -47,6 +47,7 @@ export interface AppState {
   qrCodeMatrix: any | null // QRCode type from qrcode library
   messages: Map<string, WAMessage[]>
   contactsCache: Map<string, string> // Maps contact ID to name
+  allContacts: Map<string, string> // Full phonebook contacts for search
   connectionStatus: "connected" | "connecting" | "disconnected" | "error"
   errorMessage: string | null
   currentChatPresence: WAHAChatPresences | null
@@ -90,6 +91,7 @@ class StateManager {
     qrCodeMatrix: null,
     messages: new Map(),
     contactsCache: new Map(),
+    allContacts: new Map(),
     connectionStatus: "disconnected",
     errorMessage: null,
     currentChatPresence: null,
@@ -235,6 +237,10 @@ class StateManager {
 
   setContactsCache(contactsCache: Map<string, string>): void {
     this.setState({ contactsCache })
+  }
+
+  setAllContacts(allContacts: Map<string, string>): void {
+    this.setState({ allContacts })
   }
 
   getContactName(contactId: string): string | undefined {

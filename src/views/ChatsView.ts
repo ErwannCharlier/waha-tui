@@ -15,6 +15,7 @@ import type { ChatSummary } from "@muhammedaksam/waha-node"
 import { chatListManager } from "./ChatListManager"
 import { Logo } from "../components/Logo"
 import { filterChats, countUnreadInArchived } from "../utils/filterChats"
+import { loadAllContacts } from "../utils/contacts"
 import {
   searchChatsWithSections,
   flattenSearchResults,
@@ -238,7 +239,7 @@ export function ChatsView() {
     const sectionedResults = searchChatsWithSections(
       state.chats,
       state.searchQuery,
-      state.contactsCache
+      state.allContacts // Use full phonebook contacts for search
     )
     // Flatten results (Chats -> Contacts -> Messages order)
     filteredChats = flattenSearchResults(sectionedResults)
@@ -321,6 +322,10 @@ export async function loadChats(sessionName: string): Promise<void> {
     const chats = (response.data as unknown as ChatSummary[]) || []
     debugLog("Chats", `Loaded ${chats.length} chats`)
     appState.setChats(chats)
+
+    // Also load all contacts for comprehensive search
+    const allContacts = await loadAllContacts(sessionName)
+    appState.setAllContacts(allContacts)
   } catch (error) {
     debugLog("Chats", `Failed to load chats: ${error}`)
     appState.setChats([])
