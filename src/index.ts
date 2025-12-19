@@ -28,7 +28,7 @@ import { MainLayout } from "./views/MainLayout"
 import type { WahaTuiConfig } from "./config/schema"
 import { initDebug, debugLog } from "./utils/debug"
 import { calculateChatListScrollOffset } from "./utils/chatListScroll"
-import { filterChats } from "./utils/filterChats"
+import { filterChats, isArchived } from "./utils/filterChats"
 import { pollingService } from "./services/PollingService"
 import { ConfigView } from "./views/ConfigView"
 import type { CliRenderer } from "@opentui/core"
@@ -374,6 +374,14 @@ async function main() {
       return
     }
 
+    // Helper to determine the current list of chats being displayed
+    const getCurrentFilteredChats = () => {
+      if (state.showingArchivedChats) {
+        return state.chats.filter(isArchived)
+      }
+      return filterChats(state.chats, state.activeFilter, state.searchQuery)
+    }
+
     // Arrow key navigation
     if (key.name === "up") {
       if (state.currentView === "sessions" && state.sessions.length > 0) {
@@ -385,7 +393,7 @@ async function main() {
         appState.setSelectedSessionIndex(newIndex)
       } else if (state.currentView === "chats" && state.chats.length > 0) {
         // Use filtered chats for navigation bounds
-        const filteredChats = filterChats(state.chats, state.activeFilter, state.searchQuery)
+        const filteredChats = getCurrentFilteredChats()
         if (filteredChats.length === 0) return
         const newIndex = Math.max(0, state.selectedChatIndex - 1)
         debugLog("Keyboard", `Chats: UP - moving from ${state.selectedChatIndex} to ${newIndex}`)
@@ -420,7 +428,7 @@ async function main() {
         appState.setSelectedSessionIndex(newIndex)
       } else if (state.currentView === "chats" && state.chats.length > 0) {
         // Use filtered chats for navigation bounds
-        const filteredChats = filterChats(state.chats, state.activeFilter, state.searchQuery)
+        const filteredChats = getCurrentFilteredChats()
         if (filteredChats.length === 0) return
         const newIndex = Math.min(filteredChats.length - 1, state.selectedChatIndex + 1)
         debugLog("Keyboard", `Chats: DOWN - from ${state.selectedChatIndex} to ${newIndex}`)
@@ -456,8 +464,14 @@ async function main() {
           pollingService.start(selectedSession.name)
         }
       } else if (state.currentView === "chats" && state.chats.length > 0) {
+        // Handle search input focus
+        if (state.inputMode) {
+          appState.setInputMode(false)
+          blurSearchInput()
+        }
+
         // Use filtered chats to get the correct selected chat
-        const filteredChats = filterChats(state.chats, state.activeFilter, state.searchQuery)
+        const filteredChats = getCurrentFilteredChats()
         const selectedChat = filteredChats[state.selectedChatIndex]
         if (selectedChat && state.currentSession) {
           // ChatSummary.id is typed as string but runtime returns an object with _serialized
@@ -500,7 +514,7 @@ async function main() {
         debugLog("Keyboard", `Sessions: END - jumping to last session (${lastIndex})`)
         appState.setSelectedSessionIndex(lastIndex)
       } else if (state.currentView === "chats" && state.chats.length > 0) {
-        const filteredChats = filterChats(state.chats, state.activeFilter, state.searchQuery)
+        const filteredChats = getCurrentFilteredChats()
         if (filteredChats.length === 0) return
         const lastIndex = filteredChats.length - 1
         debugLog("Keyboard", `Chats: END - jumping to last chat (${lastIndex})`)
@@ -521,7 +535,7 @@ async function main() {
     // PAGE UP key - jump up by viewport height (~12 chats)
     if (key.name === "pageup" || key.name === "left") {
       if (state.currentView === "chats" && state.chats.length > 0) {
-        const filteredChats = filterChats(state.chats, state.activeFilter, state.searchQuery)
+        const filteredChats = getCurrentFilteredChats()
         if (filteredChats.length === 0) return
         const pageSize = 12
         const newIndex = Math.max(0, state.selectedChatIndex - pageSize)
@@ -549,7 +563,7 @@ async function main() {
     // PAGE DOWN key - jump down by viewport height (~12 chats)
     if (key.name === "pagedown" || key.name === "right") {
       if (state.currentView === "chats" && state.chats.length > 0) {
-        const filteredChats = filterChats(state.chats, state.activeFilter, state.searchQuery)
+        const filteredChats = getCurrentFilteredChats()
         if (filteredChats.length === 0) return
         const pageSize = 12
         const newIndex = Math.min(filteredChats.length - 1, state.selectedChatIndex + pageSize)
