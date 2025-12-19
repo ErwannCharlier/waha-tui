@@ -32,6 +32,10 @@ import { filterChats, isArchived } from "./utils/filterChats"
 import { pollingService } from "./services/PollingService"
 import { ConfigView } from "./views/ConfigView"
 import type { CliRenderer } from "@opentui/core"
+import { setRenderer } from "./state/RendererContext"
+import { showQRCode } from "./views/QRCodeView"
+import { chatListManager } from "./views/ChatListManager"
+import { getClient } from "./client"
 
 /**
  * Run the configuration wizard using the TUI
@@ -131,7 +135,6 @@ async function main() {
   const renderer = await createCliRenderer({ exitOnCtrlC: true })
 
   // Set renderer context for imperative API usage
-  const { setRenderer } = await import("./state/RendererContext")
   setRenderer(renderer)
 
   let config: WahaTuiConfig | null = null
@@ -193,7 +196,7 @@ async function main() {
 
   // Fetch WAHA version and tier info
   try {
-    const client = (await import("./client")).getClient()
+    const client = getClient()
     const { data: versionInfo } = await client.observability.versionControllerGet()
     if (versionInfo?.tier) {
       appState.setState({ wahaTier: versionInfo.tier })
@@ -226,12 +229,8 @@ async function main() {
     appState.setCurrentSession(DEFAULT_SESSION)
     appState.setCurrentView("qr")
     // Trigger QR code loading
-    const { showQRCode } = await import("./views/QRCodeView")
     await showQRCode(DEFAULT_SESSION)
   }
-
-  // Import ChatListManager for optimized rendering
-  const { chatListManager } = await import("./views/ChatListManager")
 
   // Set up reactive rendering
   function renderApp(forceRebuild: boolean = false) {
