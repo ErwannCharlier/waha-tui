@@ -6,7 +6,7 @@
 import { Box, ASCIIFont } from "@opentui/core"
 import { WhatsAppTheme } from "../config/theme"
 
-export function Logo({ color = WhatsAppTheme.white }: { color?: string }) {
+export function Logo({ color = WhatsAppTheme.textPrimary }: { color?: string }) {
   return Box(
     {
       flexDirection: "column",
