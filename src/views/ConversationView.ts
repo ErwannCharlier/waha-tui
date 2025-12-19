@@ -570,10 +570,24 @@ function renderMessage(
     borderColor: isFromMe ? WhatsAppTheme.green : WhatsAppTheme.borderColor,
     flexDirection: "column",
     // Handle right-click for context menu
-    onMouse: (event) => {
+    // Use function (not arrow) to get access to 'this' which is the bubble renderable
+    onMouse: function (event) {
       if (event.type === "down" && event.button === 2) {
-        debugLog("ConversationView", `Right-clicked message: ${msgId}`)
-        appState.openContextMenu("message", msgId, msgRef as unknown as WAMessage)
+        // Get bubble's exact screen position and dimensions
+        const bubbleX = this.x
+        const bubbleY = this.y
+
+        debugLog(
+          "ConversationView",
+          `Right-clicked message: ${msgId} at bubble pos (${bubbleX}, ${bubbleY})`
+        )
+
+        // Pass bubble bounds for precise positioning
+        // The context menu will use this to anchor to the bubble's corner
+        appState.openContextMenu("message", msgId, msgRef as unknown as WAMessage, {
+          x: bubbleX,
+          y: bubbleY,
+        })
       }
     },
   })

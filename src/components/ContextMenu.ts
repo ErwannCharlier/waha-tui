@@ -7,6 +7,7 @@ import { Box, ProxiedVNode, Text, type BoxRenderable } from "@opentui/core"
 import { WhatsAppTheme, Icons } from "../config/theme"
 import { appState, type ContextMenuType } from "../state/AppState"
 import type { ChatSummary, WAMessage } from "@muhammedaksam/waha-node"
+import { getRenderer } from "../state/RendererContext"
 
 export interface ContextMenuItem {
   id: string
@@ -180,20 +181,70 @@ export function ContextMenu(): ProxiedVNode<typeof BoxRenderable> | null {
   })
 
   // Calculate menu height
-  const menuHeight = items.reduce((acc, item) => acc + (item.separator ? 2 : 1), 0) + 2 // +2 for border
+  const menuHeight =
+    items.reduce((acc, item) => acc + (item.separator ? 2 : 1), 0) +
+    (contextMenu.type === "chat" ? 2 : 1) // +2 for border
 
   // Menu title
-  const title = contextMenu.type === "chat" ? "Chat Options" : "Message Options"
+  // const title = contextMenu.type === "chat" ? "Chat Options" : "Message Options"
+
+  // Position logic differs by menu type:
+  // - Chat menu: appears at click position (floating near clicked chat)
+  // - Message menu: anchored to right side of conversation area, near the clicked message
+  const pos = contextMenu.position || { x: 10, y: 5 }
+
+  let leftPosition: number
+  let topPosition: number
+
+  if (contextMenu.type === "message") {
+    // For message menu: anchor to top-right corner of the message bubble
+    // Use the exact bubble position and dimensions passed from the renderable
+    const message = contextMenu.targetData as { fromMe?: boolean } | null
+    const isFromMe = message?.fromMe === true
+
+    // Get bubble bounds from position
+    const bubbleX = pos.x
+    const bubbleY = pos.y
+    const bubbleWidth = pos.bubbleWidth || 40
+    const bubbleHeight = pos.bubbleHeight || 3
+
+    if (isFromMe) {
+      // Sent messages (right-aligned) - menu appears 1 block left from the bubble's left edge
+      // So position is: bubbleX - menuWidth - 1
+      leftPosition = Math.max(2, bubbleX - menuWidth - 1)
+    } else {
+      // Received messages (left-aligned) - menu appears 1 block right from the bubble's right edge
+      // So position is: bubbleX + bubbleWidth + 1
+      leftPosition = bubbleX + bubbleWidth + 1
+    }
+
+    // Check for bottom overflow - if menu would go off screen, show above instead
+    const renderer = getRenderer()
+    const terminalHeight = renderer.height
+    // Anchor 1 row down from the top of the bubble
+    const anchorY = bubbleY + 1
+
+    if (anchorY + menuHeight > terminalHeight - 2) {
+      // Menu would overflow - anchor from bottom of bubble instead (menu grows upward)
+      // Position so the bottom of the menu aligns with the bottom of the bubble
+      topPosition = Math.max(2, bubbleY + bubbleHeight - menuHeight)
+    } else {
+      // Normal positioning - menu starts 1 row down from bubble top
+      topPosition = Math.max(2, anchorY)
+    }
+  } else {
+    // For chat menu: use click position
+    leftPosition = Math.max(2, pos.x)
+    topPosition = Math.max(2, pos.y)
+  }
 
   return Box(
     {
-      // Position in center of screen for now
-      // A more sophisticated implementation would position near click location
       position: "absolute",
-      top: 5,
-      left: 10,
+      top: topPosition,
+      left: leftPosition,
       width: menuWidth + 2, // +2 for border
-      height: menuHeight,
+      height: menuHeight + (contextMenu.type === "message" ? 1 : 0),
       backgroundColor: WhatsAppTheme.panelDark,
       border: true,
       borderColor: WhatsAppTheme.borderLight,
@@ -201,18 +252,18 @@ export function ContextMenu(): ProxiedVNode<typeof BoxRenderable> | null {
       zIndex: 100,
     },
     // Header
-    Box(
-      {
-        height: 1,
-        width: menuWidth,
-        paddingLeft: 1,
-        backgroundColor: WhatsAppTheme.panelLight,
-      },
-      Text({
-        content: title,
-        fg: WhatsAppTheme.textSecondary,
-      })
-    ),
+    // Box(
+    //   {
+    //     height: 1,
+    //     width: menuWidth,
+    //     paddingLeft: 1,
+    //     backgroundColor: WhatsAppTheme.panelLight,
+    //   },
+    //   Text({
+    //     content: title,
+    //     fg: WhatsAppTheme.textSecondary,
+    //   })
+    // ),
     // Menu items
     ...menuItems
   )

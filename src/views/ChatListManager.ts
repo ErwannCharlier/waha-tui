@@ -226,7 +226,8 @@ class ChatListManager {
             if (event.button === 2) {
               debugLog("ChatListManager", `Right-clicked chat: ${chatRef.name || chatId}`)
               appState.setSelectedChatIndex(chatIndex)
-              appState.openContextMenu("chat", chatId, chatRef)
+              // Pass click position for menu placement
+              appState.openContextMenu("chat", chatId, chatRef, { x: event.x, y: event.y })
               return
             }
 

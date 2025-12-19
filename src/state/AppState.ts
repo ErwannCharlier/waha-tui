@@ -22,6 +22,12 @@ export interface ContextMenuState {
   targetId: string | null // Chat ID or Message ID
   targetData?: ChatSummary | WAMessage | null // The actual chat or message data
   selectedIndex: number // Currently highlighted menu item
+  position: {
+    x: number
+    y: number
+    bubbleWidth?: number // For message bubbles - the width of the bubble
+    bubbleHeight?: number // For message bubbles - the height of the bubble
+  }
 }
 
 export type ViewType =
@@ -315,7 +321,8 @@ class StateManager {
   openContextMenu(
     type: ContextMenuType,
     targetId: string,
-    targetData?: ChatSummary | WAMessage | null
+    targetData?: ChatSummary | WAMessage | null,
+    position: { x: number; y: number } = { x: 10, y: 5 }
   ): void {
     this.setState({
       contextMenu: {
@@ -324,6 +331,7 @@ class StateManager {
         targetId,
         targetData,
         selectedIndex: 0,
+        position,
       },
     })
   }
