@@ -9,6 +9,7 @@ import { appState, type ContextMenuType } from "../state/AppState"
 import type { ChatSummary, WAMessage } from "@muhammedaksam/waha-node"
 import type { WAMessageExtended } from "../types"
 import { getRenderer } from "../state/RendererContext"
+import { isArchived } from "../utils/filterChats"
 
 export interface ContextMenuItem {
   id: string
@@ -22,9 +23,7 @@ export interface ContextMenuItem {
 // Chat context menu items
 export function getChatMenuItems(chat: ChatSummary): ContextMenuItem[] {
   // Check if chat is archived using the same logic as filterChats
-  // The archived property is at _chat.archived, not chat.archive
-  const rawChat = (chat as { _chat?: { archived?: boolean } })._chat
-  const isArchivedChat = rawChat?.archived === true
+  const isArchivedChat = isArchived(chat)
 
   return [
     {

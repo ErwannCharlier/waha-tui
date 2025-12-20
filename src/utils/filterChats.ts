@@ -18,13 +18,25 @@ interface ExtendedChat {
  * Extract the extended chat properties from _chat
  */
 function getChatProperties(chat: ChatSummary): ExtendedChat {
+  // Check top-level properties first (populated by modified waha backend)
+  const c = chat as ChatSummary & { archived?: boolean; pinned?: boolean; unreadCount?: number }
+  if (c.archived !== undefined) {
+    return {
+      archived: c.archived,
+      pinned: c.pinned,
+      unreadCount: c.unreadCount,
+      star: undefined, // Not yet in top-level
+    }
+  }
+
   const rawChat = chat._chat as Record<string, unknown> | undefined
   if (!rawChat) return {}
 
   return {
-    archived: rawChat.archived as boolean | undefined,
+    // Check both archived (standard) and archive (some raw data formats)
+    archived: (rawChat.archived ?? rawChat.archive) as boolean | undefined,
     unreadCount: rawChat.unreadCount as number | undefined,
-    pinned: rawChat.pinned as boolean | undefined,
+    pinned: (rawChat.pinned ?? rawChat.pin) as boolean | undefined,
     star: rawChat.star as boolean | undefined,
   }
 }
@@ -34,7 +46,7 @@ function getChatProperties(chat: ChatSummary): ExtendedChat {
  */
 export function isArchived(chat: ChatSummary): boolean {
   const props = getChatProperties(chat)
-  return props.archived === true
+  return !!props.archived
 }
 
 /**
@@ -72,7 +84,10 @@ export function filterChats(
   searchQuery: string
 ): ChatSummary[] {
   // First, exclude archived chats
-  let filtered = chats.filter((chat) => !isArchived(chat))
+  let filtered = chats.filter((chat) => {
+    // debugLog("filterChats", `Chat: ${chat.name}, archived: ${isArchived(chat)}`)
+    return !isArchived(chat)
+  })
 
   // Apply search filter if query exists
   if (searchQuery.trim()) {
