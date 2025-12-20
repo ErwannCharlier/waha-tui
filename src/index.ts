@@ -25,6 +25,7 @@ import {
   deleteSession,
   loadContacts,
   loadOlderMessages,
+  fetchMyProfile,
 } from "./client"
 import { appState } from "./state/AppState"
 import { Footer } from "./components/Footer"
@@ -243,6 +244,7 @@ async function main() {
     appState.setCurrentView("chats")
     await loadChats()
     webSocketService.connect() // Connect also if already working
+    fetchMyProfile() // Fetch profile for "You" identification
   } else {
     // No working session - show QR view for login
     debugLog("App", `No working session, showing QR login with session: ${DEFAULT_SESSION}`)
@@ -745,6 +747,7 @@ async function main() {
           appState.setCurrentSession(selectedSession.name)
           appState.setCurrentView("chats")
           appState.setSelectedChatIndex(0) // Reset chat selection
+          await fetchMyProfile() // Fetch profile for "You" identification
           await loadChats()
           webSocketService.connect() // Ensure connected
         }
