@@ -22,8 +22,9 @@ import {
 } from "../utils/formatters"
 import { debugLog } from "../utils/debug"
 import { appState } from "../state/AppState"
-import { loadMessages, loadContacts, destroyConversationScrollBox } from "./ConversationView"
+import { destroyConversationScrollBox } from "./ConversationView"
 import { ROW_HEIGHT } from "../utils/chatListScroll"
+import { loadContacts, loadMessages } from "../client"
 
 interface ChatRowData {
   box: BoxRenderable
@@ -87,7 +88,7 @@ class ChatListManager {
 
     // CASE 1: exact same content (no changes)
     if (this.scrollBox && newContentHash === this.currentChatsHash) {
-      debugLog("ChatListManager", "Using cached chat list (exact match)")
+      // debugLog("ChatListManager", "Using cached chat list (exact match)")
       // Still need to update selection/active styling as those may have changed
       const state = appState.getState()
       this.updateSelectionAndActive(state.selectedChatIndex, state.currentChatId, chats)
@@ -103,14 +104,14 @@ class ChatListManager {
       this.currentStructureHash === newStructureHash &&
       this.chatRows.size === chats.length
     ) {
-      debugLog("ChatListManager", "Updating existing chat list content (same structure)")
+      // debugLog("ChatListManager", "Updating existing chat list content (same structure)")
       this.updateExistingRows(chats)
       return this.scrollBox
     }
 
     // CASE 3: structure changed (reorder or new chat)
     // Full rebuild required
-    debugLog("ChatListManager", `Rebuilding chat list (structure changed)`)
+    // debugLog("ChatListManager", `Rebuilding chat list (structure changed)`)
 
     // Destroy old renderables if they exist
     this.destroy()
@@ -211,7 +212,7 @@ class ChatListManager {
         : isCurrentChat
           ? WhatsAppTheme.activeBg
           : WhatsAppTheme.panelDark,
-      // Handle click (mouse down) to open chat
+      // Handle click (mouse down) to open chat or show context menu
       onMouse: (event) => {
         if (event.type === "down") {
           const currentState = appState.getState()
@@ -222,6 +223,16 @@ class ChatListManager {
                 ? chatRef.id
                 : (chatRef.id as { _serialized: string })._serialized
 
+            // Right-click (button 2) opens context menu
+            if (event.button === 2) {
+              debugLog("ChatListManager", `Right-clicked chat: ${chatRef.name || chatId}`)
+              appState.setSelectedChatIndex(chatIndex)
+              // Pass click position for menu placement
+              appState.openContextMenu("chat", chatId, chatRef, { x: event.x, y: event.y })
+              return
+            }
+
+            // Left-click (button 0) opens chat
             debugLog("ChatListManager", `Clicked chat: ${chatRef.name || chatId}`)
 
             // Destroy old scroll box before loading new messages
@@ -232,8 +243,8 @@ class ChatListManager {
             appState.setSelectedChatIndex(chatIndex)
 
             // Load contacts and messages
-            loadContacts(currentState.currentSession)
-            loadMessages(currentState.currentSession, chatId)
+            loadContacts()
+            loadMessages(chatId)
           }
         }
       },
@@ -294,23 +305,25 @@ class ChatListManager {
     const messageRow = new BoxRenderable(renderer, {
       id: `message-row-${index}`,
       flexDirection: "row",
-      justifyContent: "space-between",
+      gap: 1,
     })
-
-    const messageText = new TextRenderable(renderer, {
-      content: truncate(lastMessageText),
-      fg: WhatsAppTheme.textSecondary,
-    })
-    messageRow.add(messageText)
 
     // Add Ack Status if message is from me
     if (preview.isFromMe) {
       messageRow.add(
         new TextRenderable(renderer, {
-          content: t`${formatAckStatus(preview.ack)}`,
+          content: t`${formatAckStatus(preview.ack, { side: "right", disableSpace: true })}`,
         })
       )
     }
+
+    const messageText = new TextRenderable(renderer, {
+      content: truncate(lastMessageText),
+      fg: WhatsAppTheme.textSecondary,
+    })
+
+    messageRow.add(messageText)
+
     chatInfo.add(messageRow)
 
     chatRow.add(chatInfo)
@@ -495,7 +508,7 @@ class ChatListManager {
    * Destroy all renderables and reset state
    */
   public destroy(): void {
-    debugLog("ChatListManager", "Destroying chat list manager")
+    // debugLog("ChatListManager", "Destroying chat list manager")
 
     // Destroy all chat rows
     for (const [, row] of this.chatRows) {

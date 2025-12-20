@@ -21,8 +21,8 @@ import { appState } from "../state/AppState"
 import { getRenderer } from "../state/RendererContext"
 import { WhatsAppTheme, Icons } from "../config/theme"
 import { debugLog } from "../utils/debug"
-import { getClient } from "../client"
-import type { WAMessage, GroupParticipant, WAHAChatPresences } from "@muhammedaksam/waha-node"
+import { sendMessage, loadChatDetails } from "../client"
+import type { WAMessage, GroupParticipant } from "@muhammedaksam/waha-node"
 import {
   formatAckStatus,
   formatLastSeen,
@@ -96,6 +96,12 @@ export function ConversationView() {
   // Messages - newest at bottom (WhatsApp style)
   const reversedMessages = messages.slice().reverse()
 
+  // Get participant IDs for color assignment
+  const participantIds =
+    isGroup && state.currentChatParticipants
+      ? state.currentChatParticipants.map((p) => p.id)
+      : undefined
+
   // Set header subtitle based on chat type
   let headerSubtitle = isSelf
     ? "Message yourself"
@@ -116,7 +122,7 @@ export function ConversationView() {
     } else {
       headerSubtitle = "tap for group info"
       // If no participants loaded yet, load them
-      loadChatDetails(state.currentSession, state.currentChatId)
+      loadChatDetails(state.currentChatId)
     }
   } else {
     // Direct chat: show presence
@@ -132,7 +138,7 @@ export function ConversationView() {
       // Trigger load if not present (could also poll)
       // loadChatDetails checks cache internally or we can throttle
       headerSubtitle = ""
-      loadChatDetails(state.currentSession, state.currentChatId)
+      loadChatDetails(state.currentChatId)
     }
   }
 
@@ -249,14 +255,43 @@ export function ConversationView() {
     conversationScrollBox.add(emptyText)
   } else {
     let lastDateLabel = ""
+    let lastSenderId = ""
+
     for (const message of reversedMessages) {
+      // Date Separator
       const dateLabel = formatDateSeparator(message.timestamp)
       if (dateLabel !== lastDateLabel) {
         conversationScrollBox.add(DaySeparator(renderer, dateLabel))
         lastDateLabel = dateLabel
+        // Reset sender grouping on new day
+        lastSenderId = ""
       }
-      conversationScrollBox.add(renderMessage(renderer, message, isGroup))
+
+      // Determine if this is the start of a new sequence of messages from the same user
+      const { senderId } = getSenderInfo(message, isGroup, participantIds, state.currentChatId)
+      const isSequenceStart = senderId !== lastSenderId
+
+      conversationScrollBox.add(
+        renderMessage(
+          renderer,
+          message,
+          isGroup,
+          isSequenceStart,
+          participantIds,
+          state.currentChatId
+        )
+      )
+
+      // Update last sender
+      lastSenderId = senderId
     }
+
+    // Add a spacer at the bottom to prevent messages from being "crushed" by the input bar
+    const spacer = new BoxRenderable(renderer, {
+      height: 1,
+      backgroundColor: WhatsAppTheme.deepDark,
+    })
+    conversationScrollBox.add(spacer)
   }
 
   // Message input field (bottom)
@@ -285,6 +320,8 @@ export function ConversationView() {
   inputContainer.height = state.inputHeight
   inputContainer.title = state.inputMode ? "Type a message (Enter to send)" : "Press 'i' to type"
   inputContainer.borderColor = state.inputMode ? WhatsAppTheme.green : WhatsAppTheme.borderLight
+  // Remove margin when reply preview is shown (it connects to reply bar)
+  inputContainer.marginTop = state.replyingToMessage ? 0 : 1
 
   // Initialize input component
   if (!messageInputComponent) {
@@ -348,8 +385,14 @@ export function ConversationView() {
     messageInputComponent.onSubmit = async () => {
       if (messageInputComponent) {
         const text = messageInputComponent.plainText.trim()
-        if (text && state.currentSession && state.currentChatId) {
-          const success = await sendMessage(state.currentSession, state.currentChatId, text)
+        // Get fresh state to get current replyingToMessage
+        const currentState = appState.getState()
+        if (text && currentState.currentChatId) {
+          // Get reply message ID if replying
+          const replyMsg = currentState.replyingToMessage as { id?: string } | null
+          const replyToId = replyMsg?.id
+
+          const success = await sendMessage(currentState.currentChatId, text, replyToId)
           if (success) {
             messageInputComponent.setText("")
             appState.setMessageInput("")
@@ -414,6 +457,135 @@ export function ConversationView() {
     }
   }
 
+  // Reply preview bar (shown when replying to a message)
+  let replyPreviewBar: BoxRenderable | null = null
+  if (state.replyingToMessage) {
+    const replyMsg = state.replyingToMessage as {
+      body?: string
+      from?: string
+      fromMe?: boolean
+      participant?: string
+      _data?: {
+        notifyName?: string
+        pushName?: string
+      }
+    }
+    const replyText = replyMsg.body || "[Media]"
+    const isFromMe = replyMsg.fromMe === true
+
+    // Extract sender name (same logic as renderMessage for consistency)
+    let senderName = isFromMe ? "You" : "Unknown"
+    let senderId = ""
+
+    if (!isFromMe) {
+      // For group messages, use participant field; otherwise use from
+      if (replyMsg.participant) {
+        senderId = replyMsg.participant
+      } else if (replyMsg.from) {
+        senderId = replyMsg.from
+      }
+
+      if (senderId) {
+        // Priority 1: Check contacts cache (user-saved names)
+        const cachedName = state.contactsCache.get(senderId)
+        if (cachedName) {
+          senderName = cachedName
+        } else if (replyMsg._data?.notifyName) {
+          // Priority 2: Use notifyName from message data
+          senderName = replyMsg._data.notifyName
+        } else if (replyMsg._data?.pushName) {
+          // Priority 3: Use pushName from message data
+          senderName = replyMsg._data.pushName
+        } else {
+          // Priority 4: Fallback to phone number
+          const parts = senderId.split("@")
+          senderName = parts[0]
+        }
+      }
+    }
+
+    // Get sender color for the bar (use senderId if available, otherwise fall back to from)
+    const senderColor = isFromMe
+      ? WhatsAppTheme.green
+      : getSenderColor(
+          senderId || replyMsg.from || "",
+          participantIds,
+          appState.getState().currentChatId || undefined
+        )
+
+    // Create reply preview bar imperatively for click handler
+    replyPreviewBar = new BoxRenderable(renderer, {
+      id: "reply-preview-bar",
+      height: 4,
+      flexDirection: "row",
+      backgroundColor: WhatsAppTheme.panelDark,
+      alignItems: "center",
+      marginTop: 1,
+      paddingLeft: 1,
+    })
+
+    // Colored left border bar (WhatsApp style)
+    const colorBar = new BoxRenderable(renderer, {
+      id: "reply-color-bar",
+      width: 1,
+      height: 2,
+      backgroundColor: senderColor,
+    })
+    replyPreviewBar.add(colorBar)
+
+    // Content container (sender + message)
+    const contentBox = new BoxRenderable(renderer, {
+      id: "reply-content",
+      flexDirection: "column",
+      flexGrow: 1,
+      paddingLeft: 1,
+    })
+
+    // Sender name
+    contentBox.add(
+      new TextRenderable(renderer, {
+        content: senderName,
+        fg: senderColor,
+        attributes: TextAttributes.BOLD,
+      })
+    )
+
+    // Message preview (truncated)
+    contentBox.add(
+      new TextRenderable(renderer, {
+        content: truncate(replyText, 60),
+        fg: WhatsAppTheme.textSecondary,
+      })
+    )
+
+    replyPreviewBar.add(contentBox)
+
+    // Cancel button (✕)
+    const cancelButton = new BoxRenderable(renderer, {
+      id: "reply-cancel",
+      width: 3,
+      height: 2,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 2,
+      onMouse(event) {
+        if (event.type === "down" && event.button === 0) {
+          appState.setReplyingToMessage(null)
+          event.stopPropagation()
+        }
+      },
+    })
+
+    cancelButton.add(
+      new TextRenderable(renderer, {
+        content: "✕",
+        fg: WhatsAppTheme.textSecondary,
+      })
+    )
+
+    replyPreviewBar.add(cancelButton)
+  }
+
   return Box(
     {
       flexDirection: "column",
@@ -422,6 +594,7 @@ export function ConversationView() {
     },
     header,
     conversationScrollBox,
+    ...(replyPreviewBar ? [replyPreviewBar] : []),
     inputContainer
   )
 }
@@ -449,46 +622,44 @@ export function scrollConversation(delta: number): void {
   }
 }
 
-// Load contacts for the session and cache them
-export async function loadContacts(sessionName: string): Promise<void> {
-  try {
-    // Only load once
-    const state = appState.getState()
-    if (state.contactsCache.size > 0) return
+// Hash function to assign consistent colors to senders (Round-Robin with fallback)
+function getSenderColor(senderId: string, participants?: string[], chatId?: string): string {
+  const colors = WhatsAppTheme.senderColors
 
-    debugLog("Contacts", `Loading contacts for session: ${sessionName}`)
-    const client = getClient()
-    const response = await client.contacts.contactsControllerGetAll({
-      session: sessionName,
-      limit: 1000,
+  // If we have a participants list, use round-robin assignment based on per-group randomized sorting
+  if (participants && participants.length > 0) {
+    // Sort participants deterministically but randomly per group
+    // We use a hash of (participantId + chatId) to seed the sort order
+    // This ensures that if two people have colliding colors in one group,
+    // they essentially "re-roll" their relative order in another group.
+    const sortedParticipants = [...participants].sort((a, b) => {
+      // Use simple string comparison if no chatId (fallback to alphabetical)
+      if (!chatId) return a.localeCompare(b)
+
+      const hashA = stringHash(a + chatId)
+      const hashB = stringHash(b + chatId)
+      return hashA - hashB
     })
 
-    const contacts = (response.data as unknown as Array<{ id?: string; name?: string }>) || []
-    const contactsMap = new Map<string, string>()
-
-    for (const contact of contacts) {
-      if (contact.id && contact.name) {
-        contactsMap.set(contact.id, contact.name)
-      }
+    const index = sortedParticipants.indexOf(senderId)
+    if (index !== -1) {
+      return colors[index % colors.length]
     }
-
-    debugLog("Contacts", `Cached ${contactsMap.size} contacts`)
-    appState.setContactsCache(contactsMap)
-  } catch (error) {
-    debugLog("Contacts", `Failed to load contacts: ${error}`)
   }
+
+  // Fallback to hash-based assignment
+  const hash = stringHash(senderId)
+  return colors[Math.abs(hash) % colors.length]
 }
 
-// Hash function to assign consistent colors to senders
-function getSenderColor(senderId: string): string {
-  const colors = WhatsAppTheme.senderColors
+// Simple string hash function
+function stringHash(str: string): number {
   let hash = 0
-  for (let i = 0; i < senderId.length; i++) {
-    hash = (hash << 5) - hash + senderId.charCodeAt(i)
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i)
     hash = hash & hash
   }
-  const color = colors[Math.abs(hash) % colors.length]
-  return color
+  return hash
 }
 
 // Extended message type to include runtime fields not in the core type
@@ -497,13 +668,230 @@ type WAMessageExtended = Omit<WAMessage, "participant" | "_data"> & {
   _data?: {
     notifyName?: string
     pushName?: string
+    quotedParticipant?: {
+      _serialized?: string
+      user?: string
+    }
   }
+  replyTo?: {
+    id: string
+    participant?: string
+    body?: string
+    _data?: {
+      notifyName?: string
+      pushName?: string
+      from?: string
+      author?: string
+    }
+  }
+}
+
+// Render the quoted/reply context box above a reply message
+function renderReplyContext(
+  renderer: CliRenderer,
+  replyTo: WAMessageExtended["replyTo"],
+  messageId: string,
+  isFromMe: boolean,
+  isGroupChat: boolean,
+  chatId: string,
+  quotedParticipantId?: string,
+  participants?: string[]
+): BoxRenderable | null {
+  if (!replyTo) return null
+
+  // Determine sender name and color for the quoted message
+  let quotedSenderName = "Unknown"
+
+  // Cast _data to access potential nested fields
+  const replyData = replyTo._data as Record<string, unknown> | undefined
+
+  // Extract sender ID - priority:
+  // 1. Explicit participant field in replyTo
+  // 2. Fallback ID passed from parent message (message._data.quotedParticipant._serialized)
+  // 3. Nested fields in replyTo._data
+  let quotedSenderId = ""
+
+  if (typeof replyTo.participant === "string" && replyTo.participant) {
+    quotedSenderId = replyTo.participant
+  } else if (quotedParticipantId) {
+    quotedSenderId = quotedParticipantId
+  } else if (replyData) {
+    // Try to get sender ID from _data.from or _data.author
+    if (typeof replyData.from === "string" && replyData.from) {
+      quotedSenderId = replyData.from
+    } else if (typeof replyData.author === "string" && replyData.author) {
+      quotedSenderId = replyData.author
+    }
+  }
+
+  // WAHA CORE workaround: Look up the original message by ID to find the sender
+  // This is more reliable than inference because it finds the actual message
+  const myProfileId = appState.getState().myProfile?.id
+  let isQuotedFromMe = quotedSenderId !== "" && quotedSenderId === myProfileId
+
+  if (!quotedSenderId && replyTo.id) {
+    // Try to find the quoted message in our loaded messages
+    const state = appState.getState()
+    const messages = state.messages.get(state.currentChatId || "") || []
+    const quotedMessage = messages.find(
+      (msg) => msg.id === replyTo.id || msg.id?.endsWith(replyTo.id)
+    )
+
+    if (quotedMessage) {
+      // Found the original message - use its sender info
+      isQuotedFromMe = quotedMessage.fromMe
+      if (!isQuotedFromMe) {
+        // Get sender ID from the quoted message
+        quotedSenderId = (quotedMessage.participant || quotedMessage.from || chatId) as string
+      } else {
+        quotedSenderId = myProfileId || ""
+      }
+    } else if (!isGroupChat && chatId) {
+      // Fallback for 1:1 chats when message not in cache
+      // In 1:1, there are only 2 people: me and the other person (chatId)
+      // Best heuristic: assume reply is to the OTHER person's message (most common pattern)
+      if (isFromMe) {
+        // I'm replying -> most likely quoting them
+        quotedSenderId = chatId
+        isQuotedFromMe = chatId === myProfileId // Handle self-chat case
+      } else {
+        // They're replying -> most likely quoting me
+        quotedSenderId = myProfileId || ""
+        isQuotedFromMe = true
+      }
+    }
+  }
+
+  if (isQuotedFromMe) {
+    quotedSenderName = "You"
+  } else if (quotedSenderId) {
+    // Priority 1: Check contacts cache using sender ID
+    const cachedName = appState.getContactName(quotedSenderId)
+    if (cachedName) {
+      quotedSenderName = cachedName
+    } else {
+      // Priority 2: Fallback to phone number from sender ID
+      const parts = quotedSenderId.split("@")
+      quotedSenderName = parts[0]
+    }
+  }
+
+  // Use sender ID for color consistency, fallback to name
+  const colorSeed = quotedSenderId || quotedSenderName
+  const senderColor = isQuotedFromMe
+    ? WhatsAppTheme.green
+    : getSenderColor(colorSeed, participants, chatId)
+  const quotedText = replyTo.body || "[Media]"
+
+  // Create the reply context container (use darker backgrounds for quote)
+  const contextBox = new BoxRenderable(renderer, {
+    id: `msg-${messageId}-reply-context`,
+    flexDirection: "row",
+    backgroundColor: isFromMe ? WhatsAppTheme.quoteSentBg : WhatsAppTheme.quoteReceivedBg,
+    marginBottom: 1,
+    border: false,
+  })
+
+  // Colored left border bar (WhatsApp style)
+  const colorBar = new BoxRenderable(renderer, {
+    id: `msg-${messageId}-reply-bar`,
+    width: 1,
+    backgroundColor: senderColor,
+  })
+  contextBox.add(colorBar)
+
+  // Content area (sender name + truncated message)
+  const contentBox = new BoxRenderable(renderer, {
+    id: `msg-${messageId}-reply-content`,
+    flexDirection: "column",
+    flexGrow: 1,
+    paddingLeft: 1,
+    paddingRight: 1,
+  })
+
+  // Sender name
+  contentBox.add(
+    new TextRenderable(renderer, {
+      content: quotedSenderName,
+      fg: senderColor,
+      attributes: TextAttributes.BOLD,
+    })
+  )
+
+  // Quoted message text (truncated)
+  contentBox.add(
+    new TextRenderable(renderer, {
+      content: truncate(quotedText, 50),
+      fg: WhatsAppTheme.textSecondary,
+    })
+  )
+
+  contextBox.add(contentBox)
+  return contextBox
+}
+
+// Helper to get sender info (ID, Name, Color)
+function getSenderInfo(
+  message: WAMessageExtended,
+  isGroupChat: boolean,
+  participants?: string[],
+  chatId?: string
+): { senderId: string; senderName: string; senderColor: string } {
+  const isFromMe = message.fromMe
+  let senderName = ""
+  let senderId = ""
+
+  if (isFromMe) {
+    senderName = "You"
+    senderId = appState.getState().myProfile?.id || "me"
+  } else {
+    senderId = message.from || ""
+    if (isGroupChat && message.participant) {
+      senderId = message.participant
+    }
+
+    // Determine name
+    if (isGroupChat && message.from) {
+      const fromParts = message.from.split("@")
+      senderName = fromParts[0] // Fallback
+
+      // Priority 1: Check contacts cache
+      const cachedName = appState.getContactName(senderId)
+      if (cachedName) {
+        senderName = cachedName
+      } else {
+        // Priority 2: _data info
+        const msgData = message._data
+        if (msgData?.notifyName) {
+          senderName = msgData.notifyName
+        } else if (msgData?.pushName) {
+          senderName = msgData.pushName
+        } else {
+          // Priority 3: Participant ID parts
+          const participantParts = senderId.split("@")
+          senderName = participantParts[0]
+        }
+      }
+    } else {
+      // 1:1 Chat sender name
+      senderName = appState.getContactName(senderId) || senderId.split("@")[0]
+    }
+  }
+
+  const senderColor = isFromMe
+    ? WhatsAppTheme.green
+    : getSenderColor(senderId, participants, chatId)
+
+  return { senderId, senderName, senderColor }
 }
 
 function renderMessage(
   renderer: CliRenderer,
   message: WAMessageExtended,
-  isGroupChat: boolean = false
+  isGroupChat: boolean = false,
+  isSequenceStart: boolean = true,
+  participants?: string[],
+  chatId?: string
 ): BoxRenderable {
   const isFromMe = message.fromMe
   const timestamp = new Date(message.timestamp * 1000).toLocaleTimeString([], {
@@ -511,65 +899,110 @@ function renderMessage(
     minute: "2-digit",
   })
 
-  // Extract sender name for group chats (only for received messages)
-  let senderName = ""
-  let senderId = ""
-  if (isGroupChat && !isFromMe && message.from) {
-    const fromParts = message.from.split("@")
-    senderName = fromParts[0] // Use phone number as fallback
-    senderId = message.from
-
-    // If message has participant field (for group messages), use that
-    if (message.participant) {
-      senderId = message.participant
-
-      // Priority 1: Check contacts cache (user-saved names)
-      const cachedName = appState.getContactName(senderId)
-      if (cachedName) {
-        senderName = cachedName
-      } else {
-        // Priority 2: Try to get display name from _data
-        const msgData = message._data
-        if (msgData?.notifyName) {
-          senderName = msgData.notifyName
-        } else if (msgData?.pushName) {
-          senderName = msgData.pushName
-        } else {
-          // Priority 3: Fallback to participant ID
-          const participantParts = senderId.split("@")
-          senderName = participantParts[0]
-        }
-      }
-    }
-  }
+  const { senderName, senderColor } = getSenderInfo(message, isGroupChat, participants, chatId)
 
   // Build message bubble content with WhatsApp-like layout
   const messageText = message.body || "(media)"
-  const timestampText = t`${timestamp}${isFromMe ? formatAckStatus(message.ack) : ""}`
+  const timestampText = t`${timestamp}${isFromMe ? formatAckStatus(message.ack, {}) : ""}`
 
   // Create outer row container
   const row = new BoxRenderable(renderer, {
     id: `msg-${message.id || Date.now()}-row`,
     flexDirection: "row",
     justifyContent: isFromMe ? "flex-end" : "flex-start",
-    marginBottom: 1,
+    marginBottom: 0, // Tight spacing for grouped messages
+    marginTop: isSequenceStart ? 1 : 0, // Add spacing only between groups
   })
 
+  // Avatar Column (Only for received messages in Group Chats)
+  if (isGroupChat && !isFromMe) {
+    const avatarColumn = new BoxRenderable(renderer, {
+      width: 6, // Match avatarBox width
+      height: 3, // Approximate height of avatar
+      marginRight: 1, // Gap between avatar column and message bubble
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+    })
+
+    if (isSequenceStart) {
+      // Show Avatar
+      const avatarBox = new BoxRenderable(renderer, {
+        width: 6, // Wider avatar box
+        height: 3, // Match column height for vertical centering
+        backgroundColor: senderColor,
+        justifyContent: "center",
+        alignItems: "center",
+      })
+      const initials = getInitials(senderName)
+      // Manually center text for TUI (width 6)
+      const centeredInitials = centerText(initials, 6)
+
+      avatarBox.add(
+        new TextRenderable(renderer, {
+          content: centeredInitials,
+          fg: WhatsAppTheme.white,
+          attributes: TextAttributes.BOLD,
+        })
+      )
+      avatarColumn.add(avatarBox)
+    } else {
+      // Empty placeholder for padding
+      // Just an empty box or nothing, but width ensures alignment
+    }
+
+    row.add(avatarColumn)
+  }
+
   // Create bubble container
+  // Capture message reference for context menu click handler
+  const msgRef = message
+  const msgId = message.id || String(Date.now())
+
+  // Extract hidden sender info from parent message _data if needed
+  let quotedParticipantId: string | undefined
+  if (message.replyTo && message._data) {
+    if (message._data.quotedParticipant) {
+      quotedParticipantId =
+        message._data.quotedParticipant._serialized || message._data.quotedParticipant.user
+    }
+  }
+
   const bubble = new BoxRenderable(renderer, {
-    id: `msg-${message.id || Date.now()}-bubble`,
+    id: `msg-${msgId}-bubble`,
     maxWidth: "65%",
     minWidth: "15%",
-    paddingLeft: 2,
-    paddingRight: 2,
+    paddingLeft: 1,
+    paddingRight: 1,
     backgroundColor: isFromMe ? WhatsAppTheme.greenDark : WhatsAppTheme.receivedBubble,
     border: true,
     borderColor: isFromMe ? WhatsAppTheme.green : WhatsAppTheme.borderColor,
     flexDirection: "column",
+    // Handle right-click for context menu
+    // Use function (not arrow) to get access to 'this' which is the bubble renderable
+    onMouse: function (event) {
+      if (event.type === "down" && event.button === 2) {
+        // Get bubble's exact screen position and dimensions
+        const bubbleX = this.x
+        const bubbleY = this.y
+
+        debugLog(
+          "ConversationView",
+          `Right-clicked message: ${msgId} at bubble pos (${bubbleX}, ${bubbleY})`
+        )
+
+        // Pass bubble bounds for precise positioning
+        // The context menu will use this to anchor to the bubble's corner
+        appState.openContextMenu("message", msgId, msgRef as unknown as WAMessage, {
+          x: bubbleX,
+          y: bubbleY,
+        })
+      }
+    },
   })
 
-  // Row 1: Sender name (only for group chat received messages)
-  if (senderName) {
+  // Row 1: Sender name (only for group chat received messages AND first in sequence)
+  if (isGroupChat && !isFromMe && isSequenceStart) {
     const senderRow = new BoxRenderable(renderer, {
       id: `msg-${message.id || Date.now()}-sender`,
       height: 1,
@@ -578,11 +1011,29 @@ function renderMessage(
     })
     const senderText = new TextRenderable(renderer, {
       content: senderName,
-      fg: getSenderColor(senderId),
+      fg: senderColor,
       attributes: TextAttributes.BOLD,
     })
     senderRow.add(senderText)
     bubble.add(senderRow)
+  }
+
+  // Row 1.5: Reply context (if this message is a reply)
+  if (message.replyTo) {
+    const chatId = message.from || message.to || ""
+    const replyContext = renderReplyContext(
+      renderer,
+      message.replyTo,
+      msgId,
+      isFromMe,
+      isGroupChat,
+      chatId,
+      quotedParticipantId, // Pass extracted sender ID
+      participants
+    )
+    if (replyContext) {
+      bubble.add(replyContext)
+    }
   }
 
   // Row 2: Message content (dynamic height for multiline)
@@ -618,127 +1069,6 @@ function renderMessage(
   return row
 }
 
-// Load messages from WAHA API
-export async function loadMessages(sessionName: string, chatId: string): Promise<void> {
-  try {
-    debugLog("Messages", `Loading messages for chat: ${chatId}`)
-    const client = getClient()
-    const response = await client.chats.chatsControllerGetChatMessages(sessionName, chatId, {
-      limit: 50,
-      downloadMedia: false,
-      sortBy: "messageTimestamp",
-      sortOrder: "desc",
-    })
-    const messages = (response.data as unknown as WAMessage[]) || []
-    debugLog("Messages", `Loaded ${messages.length} messages`)
-    appState.setMessages(chatId, messages)
-  } catch (error) {
-    debugLog("Messages", `Failed to load messages: ${error}`)
-    appState.setMessages(chatId, [])
-  }
-}
-
-// Load chat details (presence or participants)
-export async function loadChatDetails(sessionName: string, chatId: string): Promise<void> {
-  const isGroup = chatId.endsWith("@g.us")
-  const client = getClient()
-
-  try {
-    if (isGroup) {
-      // Load participants
-      debugLog("Conversation", `Loading participants for group: ${chatId}`)
-      const response = await client.groups.groupsControllerGetGroupParticipants(sessionName, chatId)
-      const participants = response.data as unknown as GroupParticipant[]
-      appState.setCurrentChatParticipants(participants)
-    } else {
-      // Load presence
-      debugLog("Conversation", `Loading presence for chat: ${chatId}`)
-      const response = await client.presence.presenceControllerGetPresence(sessionName, chatId)
-      const presence = response.data as unknown as WAHAChatPresences
-      appState.setCurrentChatPresence(presence)
-    }
-  } catch (error) {
-    debugLog("Conversation", `Failed to load chat details: ${error}`)
-  }
-}
-
-// Track if we're currently loading more messages
-let isLoadingMore = false
-
-// Load older messages (for infinite scroll)
-export async function loadOlderMessages(): Promise<void> {
-  const state = appState.getState()
-  if (!state.currentChatId || !state.currentSession || isLoadingMore) {
-    return
-  }
-
-  const currentMessages = state.messages.get(state.currentChatId) || []
-  if (currentMessages.length === 0) return
-
-  isLoadingMore = true
-  const offset = currentMessages.length
-  debugLog("Messages", `Loading older messages with offset ${offset}`)
-
-  try {
-    const client = getClient()
-    // Load more messages using offset for pagination
-    const response = await client.chats.chatsControllerGetChatMessages(
-      state.currentSession,
-      state.currentChatId,
-      {
-        limit: 50,
-        offset: offset,
-        downloadMedia: false,
-        sortBy: "messageTimestamp",
-        sortOrder: "desc",
-      }
-    )
-
-    const newMessages = (response.data as unknown as WAMessage[]) || []
-
-    if (newMessages.length > 0) {
-      debugLog("Messages", `Loaded ${newMessages.length} older messages`)
-      // Append older messages to existing ones (maintaining Descending order)
-      const combinedMessages = [...currentMessages, ...newMessages]
-      appState.setMessages(state.currentChatId, combinedMessages)
-    } else {
-      debugLog("Messages", "No more older messages available")
-    }
-  } catch (error) {
-    debugLog("Messages", `Failed to load older messages: ${error}`)
-  } finally {
-    isLoadingMore = false
-  }
-}
-
-// Send a message via WAHA API
-export async function sendMessage(
-  sessionName: string,
-  chatId: string,
-  text: string
-): Promise<boolean> {
-  try {
-    debugLog("Messages", `Sending message to ${chatId}: ${text}`)
-    appState.setIsSending(true)
-
-    const client = getClient()
-    await client.chatting.chattingControllerSendText({
-      session: sessionName,
-      chatId,
-      text,
-    })
-
-    debugLog("Messages", "Message sent successfully")
-    // Reload messages to get the sent message with proper metadata
-    await loadMessages(sessionName, chatId)
-    appState.setIsSending(false)
-    return true
-  } catch (error) {
-    debugLog("Messages", `Failed to send message: ${error}`)
-    appState.setIsSending(false)
-    return false
-  }
-}
 // Helper to format date for separator
 function formatDateSeparator(timestamp: number): string {
   const date = new Date(timestamp * 1000)
@@ -794,4 +1124,11 @@ function DaySeparator(renderer: CliRenderer, label: string): BoxRenderable {
   badge.add(text)
   container.add(badge)
   return container
+}
+
+// Helper to center text in a fixed width
+function centerText(text: string, width: number): string {
+  if (text.length >= width) return text.slice(0, width)
+  const paddingLeft = Math.floor((width - text.length) / 2)
+  return text.padStart(text.length + paddingLeft).padEnd(width)
 }

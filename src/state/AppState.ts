@@ -13,6 +13,23 @@ import type {
 } from "@muhammedaksam/waha-node"
 import { debugLog } from "../utils/debug"
 
+// Context menu types
+export type ContextMenuType = "chat" | "message" | null
+
+export interface ContextMenuState {
+  visible: boolean
+  type: ContextMenuType
+  targetId: string | null // Chat ID or Message ID
+  targetData?: ChatSummary | WAMessage | null // The actual chat or message data
+  selectedIndex: number // Currently highlighted menu item
+  position: {
+    x: number
+    y: number
+    bubbleWidth?: number // For message bubbles - the width of the bubble
+    bubbleHeight?: number // For message bubbles - the height of the bubble
+  }
+}
+
 export type ViewType =
   | "config"
   | "sessions"
@@ -80,6 +97,12 @@ export interface AppState {
 
   // Config wizard state
   configStep: ConfigStep | null
+
+  // Context menu state
+  contextMenu: ContextMenuState | null
+
+  // Reply state - message being replied to
+  replyingToMessage: WAMessage | null
 }
 
 class StateManager {
@@ -125,6 +148,12 @@ class StateManager {
 
     // Config wizard
     configStep: null,
+
+    // Context menu
+    contextMenu: null,
+
+    // Reply state
+    replyingToMessage: null,
   }
 
   private listeners: Array<(state: AppState) => void> = []
@@ -286,6 +315,58 @@ class StateManager {
       chatListScrollOffset: 0,
       lastChangeType: "data",
     })
+  }
+
+  // Context menu methods
+  openContextMenu(
+    type: ContextMenuType,
+    targetId: string,
+    targetData?: ChatSummary | WAMessage | null,
+    position: { x: number; y: number } = { x: 10, y: 5 }
+  ): void {
+    this.setState({
+      contextMenu: {
+        visible: true,
+        type,
+        targetId,
+        targetData,
+        selectedIndex: 0,
+        position,
+      },
+    })
+  }
+
+  closeContextMenu(): void {
+    this.setState({ contextMenu: null })
+  }
+
+  setContextMenuSelectedIndex(selectedIndex: number): void {
+    if (this.state.contextMenu) {
+      this.setState({
+        contextMenu: {
+          ...this.state.contextMenu,
+          selectedIndex,
+        },
+      })
+    }
+  }
+
+  // Context menu action callback (set by index.ts)
+  private contextMenuActionCallback: ((actionId: string) => void) | null = null
+
+  setContextMenuActionCallback(callback: (actionId: string) => void): void {
+    this.contextMenuActionCallback = callback
+  }
+
+  triggerContextMenuAction(actionId: string): void {
+    if (this.contextMenuActionCallback) {
+      this.contextMenuActionCallback(actionId)
+    }
+  }
+
+  // Reply methods
+  setReplyingToMessage(message: WAMessage | null): void {
+    this.setState({ replyingToMessage: message })
   }
 }
 
