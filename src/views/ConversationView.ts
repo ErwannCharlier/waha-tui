@@ -96,6 +96,12 @@ export function ConversationView() {
   // Messages - newest at bottom (WhatsApp style)
   const reversedMessages = messages.slice().reverse()
 
+  // Get participant IDs for color assignment
+  const participantIds =
+    isGroup && state.currentChatParticipants
+      ? state.currentChatParticipants.map((p) => p.id)
+      : undefined
+
   // Set header subtitle based on chat type
   let headerSubtitle = isSelf
     ? "Message yourself"
@@ -262,10 +268,19 @@ export function ConversationView() {
       }
 
       // Determine if this is the start of a new sequence of messages from the same user
-      const { senderId } = getSenderInfo(message, isGroup)
+      const { senderId } = getSenderInfo(message, isGroup, participantIds, state.currentChatId)
       const isSequenceStart = senderId !== lastSenderId
 
-      conversationScrollBox.add(renderMessage(renderer, message, isGroup, isSequenceStart))
+      conversationScrollBox.add(
+        renderMessage(
+          renderer,
+          message,
+          isGroup,
+          isSequenceStart,
+          participantIds,
+          state.currentChatId
+        )
+      )
 
       // Update last sender
       lastSenderId = senderId
@@ -492,7 +507,11 @@ export function ConversationView() {
     // Get sender color for the bar (use senderId if available, otherwise fall back to from)
     const senderColor = isFromMe
       ? WhatsAppTheme.green
-      : getSenderColor(senderId || replyMsg.from || "")
+      : getSenderColor(
+          senderId || replyMsg.from || "",
+          participantIds,
+          appState.getState().currentChatId || undefined
+        )
 
     // Create reply preview bar imperatively for click handler
     replyPreviewBar = new BoxRenderable(renderer, {
@@ -603,16 +622,44 @@ export function scrollConversation(delta: number): void {
   }
 }
 
-// Hash function to assign consistent colors to senders
-function getSenderColor(senderId: string): string {
+// Hash function to assign consistent colors to senders (Round-Robin with fallback)
+function getSenderColor(senderId: string, participants?: string[], chatId?: string): string {
   const colors = WhatsAppTheme.senderColors
+
+  // If we have a participants list, use round-robin assignment based on per-group randomized sorting
+  if (participants && participants.length > 0) {
+    // Sort participants deterministically but randomly per group
+    // We use a hash of (participantId + chatId) to seed the sort order
+    // This ensures that if two people have colliding colors in one group,
+    // they essentially "re-roll" their relative order in another group.
+    const sortedParticipants = [...participants].sort((a, b) => {
+      // Use simple string comparison if no chatId (fallback to alphabetical)
+      if (!chatId) return a.localeCompare(b)
+
+      const hashA = stringHash(a + chatId)
+      const hashB = stringHash(b + chatId)
+      return hashA - hashB
+    })
+
+    const index = sortedParticipants.indexOf(senderId)
+    if (index !== -1) {
+      return colors[index % colors.length]
+    }
+  }
+
+  // Fallback to hash-based assignment
+  const hash = stringHash(senderId)
+  return colors[Math.abs(hash) % colors.length]
+}
+
+// Simple string hash function
+function stringHash(str: string): number {
   let hash = 0
-  for (let i = 0; i < senderId.length; i++) {
-    hash = (hash << 5) - hash + senderId.charCodeAt(i)
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i)
     hash = hash & hash
   }
-  const color = colors[Math.abs(hash) % colors.length]
-  return color
+  return hash
 }
 
 // Extended message type to include runtime fields not in the core type
@@ -647,7 +694,8 @@ function renderReplyContext(
   isFromMe: boolean,
   isGroupChat: boolean,
   chatId: string,
-  fallbackSenderId?: string
+  quotedParticipantId?: string,
+  participants?: string[]
 ): BoxRenderable | null {
   if (!replyTo) return null
 
@@ -665,8 +713,8 @@ function renderReplyContext(
 
   if (typeof replyTo.participant === "string" && replyTo.participant) {
     quotedSenderId = replyTo.participant
-  } else if (fallbackSenderId) {
-    quotedSenderId = fallbackSenderId
+  } else if (quotedParticipantId) {
+    quotedSenderId = quotedParticipantId
   } else if (replyData) {
     // Try to get sender ID from _data.from or _data.author
     if (typeof replyData.from === "string" && replyData.from) {
@@ -730,7 +778,9 @@ function renderReplyContext(
 
   // Use sender ID for color consistency, fallback to name
   const colorSeed = quotedSenderId || quotedSenderName
-  const senderColor = isQuotedFromMe ? WhatsAppTheme.green : getSenderColor(colorSeed)
+  const senderColor = isQuotedFromMe
+    ? WhatsAppTheme.green
+    : getSenderColor(colorSeed, participants, chatId)
   const quotedText = replyTo.body || "[Media]"
 
   // Create the reply context container (use darker backgrounds for quote)
@@ -783,7 +833,9 @@ function renderReplyContext(
 // Helper to get sender info (ID, Name, Color)
 function getSenderInfo(
   message: WAMessageExtended,
-  isGroupChat: boolean
+  isGroupChat: boolean,
+  participants?: string[],
+  chatId?: string
 ): { senderId: string; senderName: string; senderColor: string } {
   const isFromMe = message.fromMe
   let senderName = ""
@@ -826,7 +878,9 @@ function getSenderInfo(
     }
   }
 
-  const senderColor = isFromMe ? WhatsAppTheme.green : getSenderColor(senderId)
+  const senderColor = isFromMe
+    ? WhatsAppTheme.green
+    : getSenderColor(senderId, participants, chatId)
 
   return { senderId, senderName, senderColor }
 }
@@ -835,7 +889,9 @@ function renderMessage(
   renderer: CliRenderer,
   message: WAMessageExtended,
   isGroupChat: boolean = false,
-  isSequenceStart: boolean = true
+  isSequenceStart: boolean = true,
+  participants?: string[],
+  chatId?: string
 ): BoxRenderable {
   const isFromMe = message.fromMe
   const timestamp = new Date(message.timestamp * 1000).toLocaleTimeString([], {
@@ -843,7 +899,7 @@ function renderMessage(
     minute: "2-digit",
   })
 
-  const { senderName, senderColor } = getSenderInfo(message, isGroupChat)
+  const { senderName, senderColor } = getSenderInfo(message, isGroupChat, participants, chatId)
 
   // Build message bubble content with WhatsApp-like layout
   const messageText = message.body || "(media)"
@@ -972,7 +1028,8 @@ function renderMessage(
       isFromMe,
       isGroupChat,
       chatId,
-      quotedParticipantId // Pass extracted sender ID
+      quotedParticipantId, // Pass extracted sender ID
+      participants
     )
     if (replyContext) {
       bubble.add(replyContext)

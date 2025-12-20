@@ -167,6 +167,19 @@ export const senderColorsPalette = [
   WDSColors.red[300],
   WDSColors.brown[300],
   WDSColors.cream[300],
+  // Add darker shades for more variety
+  WDSColors.emerald[500],
+  WDSColors.skyBlue[500],
+  WDSColors.pink[500],
+  WDSColors.purple[500],
+  WDSColors.yellow[500],
+  WDSColors.orange[500],
+  WDSColors.cobalt[500],
+  WDSColors.teal[500],
+  WDSColors.green[500],
+  WDSColors.red[500],
+  WDSColors.brown[500],
+  WDSColors.cream[500],
 ] as const
 
 export const WhatsAppTheme = {
