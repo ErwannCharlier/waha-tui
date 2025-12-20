@@ -152,7 +152,7 @@ waha-tui/
 ├── src/
 │   ├── components/      # Reusable UI components
 │   ├── config/          # Configuration management
-│   ├── services/        # Background services (polling)
+│   ├── services/        # Background services (WebSocket)
 │   ├── state/           # Global state management
 │   ├── utils/           # Utility functions
 │   ├── views/           # Main application views
