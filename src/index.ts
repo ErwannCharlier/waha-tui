@@ -267,7 +267,7 @@ async function main() {
       return
     }
 
-    debugLog("Render", `Full rebuild: lastChangeType=${state.lastChangeType}`)
+    // debugLog("Render", `Full rebuild: lastChangeType=${state.lastChangeType}`)
 
     // Clear previous render - remove all children
     const children = renderer.root.getChildren()

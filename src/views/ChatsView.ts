@@ -52,10 +52,10 @@ export function ChatsView() {
   const state = appState.getState()
   const renderer = getRenderer()
 
-  debugLog(
-    "ChatsView",
-    `Rendering ChatsView - selectedChatIndex: ${state.selectedChatIndex}, chats: ${state.chats.length}`
-  )
+  // debugLog(
+  //   "ChatsView",
+  //   `Rendering ChatsView - selectedChatIndex: ${state.selectedChatIndex}, chats: ${state.chats.length}`
+  // )
 
   if (!state.currentSession) {
     debugLog("ChatsView", "No current session, showing placeholder")

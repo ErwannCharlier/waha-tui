@@ -650,10 +650,17 @@ export async function loadOlderMessages(): Promise<void> {
   }
 }
 
-export async function sendMessage(chatId: string, text: string): Promise<boolean> {
+export async function sendMessage(
+  chatId: string,
+  text: string,
+  replyToMsgId?: string
+): Promise<boolean> {
   try {
     const session = getSession()
-    debugLog("Messages", `Sending message to ${chatId}: ${text}`)
+    debugLog(
+      "Messages",
+      `Sending message to ${chatId}: ${text}${replyToMsgId ? ` (replying to ${replyToMsgId})` : ""}`
+    )
     appState.setIsSending(true)
 
     const wahaClient = getClient()
@@ -661,9 +668,14 @@ export async function sendMessage(chatId: string, text: string): Promise<boolean
       session,
       chatId,
       text,
+      ...(replyToMsgId && { reply_to: replyToMsgId }),
     })
 
     debugLog("Messages", "Message sent successfully")
+
+    // Clear reply state after successful send
+    appState.setReplyingToMessage(null)
+
     await loadMessages(chatId)
     appState.setIsSending(false)
     return true

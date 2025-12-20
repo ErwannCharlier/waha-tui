@@ -88,7 +88,7 @@ class ChatListManager {
 
     // CASE 1: exact same content (no changes)
     if (this.scrollBox && newContentHash === this.currentChatsHash) {
-      debugLog("ChatListManager", "Using cached chat list (exact match)")
+      // debugLog("ChatListManager", "Using cached chat list (exact match)")
       // Still need to update selection/active styling as those may have changed
       const state = appState.getState()
       this.updateSelectionAndActive(state.selectedChatIndex, state.currentChatId, chats)
@@ -104,14 +104,14 @@ class ChatListManager {
       this.currentStructureHash === newStructureHash &&
       this.chatRows.size === chats.length
     ) {
-      debugLog("ChatListManager", "Updating existing chat list content (same structure)")
+      // debugLog("ChatListManager", "Updating existing chat list content (same structure)")
       this.updateExistingRows(chats)
       return this.scrollBox
     }
 
     // CASE 3: structure changed (reorder or new chat)
     // Full rebuild required
-    debugLog("ChatListManager", `Rebuilding chat list (structure changed)`)
+    // debugLog("ChatListManager", `Rebuilding chat list (structure changed)`)
 
     // Destroy old renderables if they exist
     this.destroy()
@@ -508,7 +508,7 @@ class ChatListManager {
    * Destroy all renderables and reset state
    */
   public destroy(): void {
-    debugLog("ChatListManager", "Destroying chat list manager")
+    // debugLog("ChatListManager", "Destroying chat list manager")
 
     // Destroy all chat rows
     for (const [, row] of this.chatRows) {

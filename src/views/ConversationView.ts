@@ -285,6 +285,8 @@ export function ConversationView() {
   inputContainer.height = state.inputHeight
   inputContainer.title = state.inputMode ? "Type a message (Enter to send)" : "Press 'i' to type"
   inputContainer.borderColor = state.inputMode ? WhatsAppTheme.green : WhatsAppTheme.borderLight
+  // Remove margin when reply preview is shown (it connects to reply bar)
+  inputContainer.marginTop = state.replyingToMessage ? 0 : 1
 
   // Initialize input component
   if (!messageInputComponent) {
@@ -348,8 +350,14 @@ export function ConversationView() {
     messageInputComponent.onSubmit = async () => {
       if (messageInputComponent) {
         const text = messageInputComponent.plainText.trim()
-        if (text && state.currentChatId) {
-          const success = await sendMessage(state.currentChatId, text)
+        // Get fresh state to get current replyingToMessage
+        const currentState = appState.getState()
+        if (text && currentState.currentChatId) {
+          // Get reply message ID if replying
+          const replyMsg = currentState.replyingToMessage as { id?: string } | null
+          const replyToId = replyMsg?.id
+
+          const success = await sendMessage(currentState.currentChatId, text, replyToId)
           if (success) {
             messageInputComponent.setText("")
             appState.setMessageInput("")
@@ -414,6 +422,131 @@ export function ConversationView() {
     }
   }
 
+  // Reply preview bar (shown when replying to a message)
+  let replyPreviewBar: BoxRenderable | null = null
+  if (state.replyingToMessage) {
+    const replyMsg = state.replyingToMessage as {
+      body?: string
+      from?: string
+      fromMe?: boolean
+      participant?: string
+      _data?: {
+        notifyName?: string
+        pushName?: string
+      }
+    }
+    const replyText = replyMsg.body || "[Media]"
+    const isFromMe = replyMsg.fromMe === true
+
+    // Extract sender name (same logic as renderMessage for consistency)
+    let senderName = isFromMe ? "You" : "Unknown"
+    let senderId = ""
+
+    if (!isFromMe) {
+      // For group messages, use participant field; otherwise use from
+      if (replyMsg.participant) {
+        senderId = replyMsg.participant
+      } else if (replyMsg.from) {
+        senderId = replyMsg.from
+      }
+
+      if (senderId) {
+        // Priority 1: Check contacts cache (user-saved names)
+        const cachedName = state.contactsCache.get(senderId)
+        if (cachedName) {
+          senderName = cachedName
+        } else if (replyMsg._data?.notifyName) {
+          // Priority 2: Use notifyName from message data
+          senderName = replyMsg._data.notifyName
+        } else if (replyMsg._data?.pushName) {
+          // Priority 3: Use pushName from message data
+          senderName = replyMsg._data.pushName
+        } else {
+          // Priority 4: Fallback to phone number
+          const parts = senderId.split("@")
+          senderName = parts[0]
+        }
+      }
+    }
+
+    // Get sender color for the bar (use senderId if available, otherwise fall back to from)
+    const senderColor = isFromMe
+      ? WhatsAppTheme.green
+      : getSenderColor(senderId || replyMsg.from || "")
+
+    // Create reply preview bar imperatively for click handler
+    replyPreviewBar = new BoxRenderable(renderer, {
+      id: "reply-preview-bar",
+      height: 4,
+      flexDirection: "row",
+      backgroundColor: WhatsAppTheme.panelDark,
+      alignItems: "center",
+      marginTop: 1,
+      paddingLeft: 1,
+    })
+
+    // Colored left border bar (WhatsApp style)
+    const colorBar = new BoxRenderable(renderer, {
+      id: "reply-color-bar",
+      width: 1,
+      height: 2,
+      backgroundColor: senderColor,
+    })
+    replyPreviewBar.add(colorBar)
+
+    // Content container (sender + message)
+    const contentBox = new BoxRenderable(renderer, {
+      id: "reply-content",
+      flexDirection: "column",
+      flexGrow: 1,
+      paddingLeft: 1,
+    })
+
+    // Sender name
+    contentBox.add(
+      new TextRenderable(renderer, {
+        content: senderName,
+        fg: senderColor,
+        attributes: TextAttributes.BOLD,
+      })
+    )
+
+    // Message preview (truncated)
+    contentBox.add(
+      new TextRenderable(renderer, {
+        content: truncate(replyText, 60),
+        fg: WhatsAppTheme.textSecondary,
+      })
+    )
+
+    replyPreviewBar.add(contentBox)
+
+    // Cancel button (✕)
+    const cancelButton = new BoxRenderable(renderer, {
+      id: "reply-cancel",
+      width: 3,
+      height: 2,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 2,
+      onMouse(event) {
+        if (event.type === "down" && event.button === 0) {
+          appState.setReplyingToMessage(null)
+          event.stopPropagation()
+        }
+      },
+    })
+
+    cancelButton.add(
+      new TextRenderable(renderer, {
+        content: "✕",
+        fg: WhatsAppTheme.textSecondary,
+      })
+    )
+
+    replyPreviewBar.add(cancelButton)
+  }
+
   return Box(
     {
       flexDirection: "column",
@@ -422,6 +555,7 @@ export function ConversationView() {
     },
     header,
     conversationScrollBox,
+    ...(replyPreviewBar ? [replyPreviewBar] : []),
     inputContainer
   )
 }
