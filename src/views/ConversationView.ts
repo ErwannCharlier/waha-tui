@@ -249,14 +249,34 @@ export function ConversationView() {
     conversationScrollBox.add(emptyText)
   } else {
     let lastDateLabel = ""
+    let lastSenderId = ""
+
     for (const message of reversedMessages) {
+      // Date Separator
       const dateLabel = formatDateSeparator(message.timestamp)
       if (dateLabel !== lastDateLabel) {
         conversationScrollBox.add(DaySeparator(renderer, dateLabel))
         lastDateLabel = dateLabel
+        // Reset sender grouping on new day
+        lastSenderId = ""
       }
-      conversationScrollBox.add(renderMessage(renderer, message, isGroup))
+
+      // Determine if this is the start of a new sequence of messages from the same user
+      const { senderId } = getSenderInfo(message, isGroup)
+      const isSequenceStart = senderId !== lastSenderId
+
+      conversationScrollBox.add(renderMessage(renderer, message, isGroup, isSequenceStart))
+
+      // Update last sender
+      lastSenderId = senderId
     }
+
+    // Add a spacer at the bottom to prevent messages from being "crushed" by the input bar
+    const spacer = new BoxRenderable(renderer, {
+      height: 1,
+      backgroundColor: WhatsAppTheme.deepDark,
+    })
+    conversationScrollBox.add(spacer)
   }
 
   // Message input field (bottom)
@@ -760,10 +780,62 @@ function renderReplyContext(
   return contextBox
 }
 
+// Helper to get sender info (ID, Name, Color)
+function getSenderInfo(
+  message: WAMessageExtended,
+  isGroupChat: boolean
+): { senderId: string; senderName: string; senderColor: string } {
+  const isFromMe = message.fromMe
+  let senderName = ""
+  let senderId = ""
+
+  if (isFromMe) {
+    senderName = "You"
+    senderId = appState.getState().myProfile?.id || "me"
+  } else {
+    senderId = message.from || ""
+    if (isGroupChat && message.participant) {
+      senderId = message.participant
+    }
+
+    // Determine name
+    if (isGroupChat && message.from) {
+      const fromParts = message.from.split("@")
+      senderName = fromParts[0] // Fallback
+
+      // Priority 1: Check contacts cache
+      const cachedName = appState.getContactName(senderId)
+      if (cachedName) {
+        senderName = cachedName
+      } else {
+        // Priority 2: _data info
+        const msgData = message._data
+        if (msgData?.notifyName) {
+          senderName = msgData.notifyName
+        } else if (msgData?.pushName) {
+          senderName = msgData.pushName
+        } else {
+          // Priority 3: Participant ID parts
+          const participantParts = senderId.split("@")
+          senderName = participantParts[0]
+        }
+      }
+    } else {
+      // 1:1 Chat sender name
+      senderName = appState.getContactName(senderId) || senderId.split("@")[0]
+    }
+  }
+
+  const senderColor = isFromMe ? WhatsAppTheme.green : getSenderColor(senderId)
+
+  return { senderId, senderName, senderColor }
+}
+
 function renderMessage(
   renderer: CliRenderer,
   message: WAMessageExtended,
-  isGroupChat: boolean = false
+  isGroupChat: boolean = false,
+  isSequenceStart: boolean = true
 ): BoxRenderable {
   const isFromMe = message.fromMe
   const timestamp = new Date(message.timestamp * 1000).toLocaleTimeString([], {
@@ -771,37 +843,7 @@ function renderMessage(
     minute: "2-digit",
   })
 
-  // Extract sender name for group chats (only for received messages)
-  let senderName = ""
-  let senderId = ""
-  if (isGroupChat && !isFromMe && message.from) {
-    const fromParts = message.from.split("@")
-    senderName = fromParts[0] // Use phone number as fallback
-    senderId = message.from
-
-    // If message has participant field (for group messages), use that
-    if (message.participant) {
-      senderId = message.participant
-
-      // Priority 1: Check contacts cache (user-saved names)
-      const cachedName = appState.getContactName(senderId)
-      if (cachedName) {
-        senderName = cachedName
-      } else {
-        // Priority 2: Try to get display name from _data
-        const msgData = message._data
-        if (msgData?.notifyName) {
-          senderName = msgData.notifyName
-        } else if (msgData?.pushName) {
-          senderName = msgData.pushName
-        } else {
-          // Priority 3: Fallback to participant ID
-          const participantParts = senderId.split("@")
-          senderName = participantParts[0]
-        }
-      }
-    }
-  }
+  const { senderName, senderColor } = getSenderInfo(message, isGroupChat)
 
   // Build message bubble content with WhatsApp-like layout
   const messageText = message.body || "(media)"
@@ -812,8 +854,49 @@ function renderMessage(
     id: `msg-${message.id || Date.now()}-row`,
     flexDirection: "row",
     justifyContent: isFromMe ? "flex-end" : "flex-start",
-    marginBottom: 1,
+    marginBottom: 0, // Tight spacing for grouped messages
+    marginTop: isSequenceStart ? 1 : 0, // Add spacing only between groups
   })
+
+  // Avatar Column (Only for received messages in Group Chats)
+  if (isGroupChat && !isFromMe) {
+    const avatarColumn = new BoxRenderable(renderer, {
+      width: 6, // Match avatarBox width
+      height: 3, // Approximate height of avatar
+      marginRight: 1, // Gap between avatar column and message bubble
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+    })
+
+    if (isSequenceStart) {
+      // Show Avatar
+      const avatarBox = new BoxRenderable(renderer, {
+        width: 6, // Wider avatar box
+        height: 3, // Match column height for vertical centering
+        backgroundColor: senderColor,
+        justifyContent: "center",
+        alignItems: "center",
+      })
+      const initials = getInitials(senderName)
+      // Manually center text for TUI (width 6)
+      const centeredInitials = centerText(initials, 6)
+
+      avatarBox.add(
+        new TextRenderable(renderer, {
+          content: centeredInitials,
+          fg: WhatsAppTheme.white,
+          attributes: TextAttributes.BOLD,
+        })
+      )
+      avatarColumn.add(avatarBox)
+    } else {
+      // Empty placeholder for padding
+      // Just an empty box or nothing, but width ensures alignment
+    }
+
+    row.add(avatarColumn)
+  }
 
   // Create bubble container
   // Capture message reference for context menu click handler
@@ -862,8 +945,8 @@ function renderMessage(
     },
   })
 
-  // Row 1: Sender name (only for group chat received messages)
-  if (senderName) {
+  // Row 1: Sender name (only for group chat received messages AND first in sequence)
+  if (isGroupChat && !isFromMe && isSequenceStart) {
     const senderRow = new BoxRenderable(renderer, {
       id: `msg-${message.id || Date.now()}-sender`,
       height: 1,
@@ -872,7 +955,7 @@ function renderMessage(
     })
     const senderText = new TextRenderable(renderer, {
       content: senderName,
-      fg: getSenderColor(senderId),
+      fg: senderColor,
       attributes: TextAttributes.BOLD,
     })
     senderRow.add(senderText)
@@ -984,4 +1067,11 @@ function DaySeparator(renderer: CliRenderer, label: string): BoxRenderable {
   badge.add(text)
   container.add(badge)
   return container
+}
+
+// Helper to center text in a fixed width
+function centerText(text: string, width: number): string {
+  if (text.length >= width) return text.slice(0, width)
+  const paddingLeft = Math.floor((width - text.length) / 2)
+  return text.padStart(text.length + paddingLeft).padEnd(width)
 }
