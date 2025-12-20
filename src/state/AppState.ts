@@ -69,6 +69,8 @@ export interface AppState {
   connectionStatus: "connected" | "connecting" | "disconnected" | "error"
   errorMessage: string | null
   currentChatPresence: WAHAChatPresences | null
+  chatPresences: Map<string, WAHAChatPresences> // Track presence for all chats (for chat list typing)
+  lidToPhoneMap: Map<string, string> // Maps @lid IDs to @c.us IDs
   currentChatParticipants: GroupParticipant[] | null
   myProfile: MyProfile | null // Current user's profile (id, name, picture)
   wahaTier: string | null // WAHA tier ("PLUS", "CORE", etc.)
@@ -120,6 +122,8 @@ class StateManager {
     connectionStatus: "disconnected",
     errorMessage: null,
     currentChatPresence: null,
+    chatPresences: new Map(),
+    lidToPhoneMap: new Map(),
     currentChatParticipants: null,
     myProfile: null,
     wahaTier: null,
@@ -414,30 +418,205 @@ class StateManager {
     this.setState({ currentChatPresence })
   }
 
+  /**
+   * Update presence for any chat (for chat list typing indicators)
+   * Also updates currentChatPresence if the chat is currently open
+   */
   updateChatPresence(chatId: string, presence: WAHAChatPresences): void {
-    if (this.state.currentChatId !== chatId) return
+    // Always store in global chatPresences Map (using the ID from the event)
+    const chatPresences = new Map(this.state.chatPresences)
 
-    // Merge with existing presence or set new
-    const current = this.state.currentChatPresence
+    // Merge with existing presence for this chat
+    const existing = chatPresences.get(chatId)
     let newPresences = presence.presences
 
-    if (current && current.presences) {
-      // Merge logic: update existing presences, add new ones
-      const existingMap = new Map(current.presences.map((p) => [p.participant, p]))
-
+    if (existing && existing.presences) {
+      const existingMap = new Map(existing.presences.map((p) => [p.participant, p]))
       for (const p of presence.presences) {
         existingMap.set(p.participant, p)
       }
-
       newPresences = Array.from(existingMap.values())
     }
 
-    this.setState({
-      currentChatPresence: {
-        id: chatId,
-        presences: newPresences,
-      },
-    })
+    chatPresences.set(chatId, { id: chatId, presences: newPresences })
+
+    // If we're viewing a chat, also update currentChatPresence
+    if (this.state.currentChatId) {
+      const current = this.state.currentChatPresence
+      let currentNewPresences = presence.presences
+
+      if (current && current.presences) {
+        const existingMap = new Map(current.presences.map((p) => [p.participant, p]))
+        for (const p of presence.presences) {
+          existingMap.set(p.participant, p)
+        }
+        currentNewPresences = Array.from(existingMap.values())
+      }
+
+      this.setState({
+        chatPresences,
+        currentChatPresence: {
+          id: this.state.currentChatId,
+          presences: currentNewPresences,
+        },
+        lastChangeType: "data", // Trigger chat list refresh
+      })
+    } else {
+      this.setState({ chatPresences, lastChangeType: "data" })
+    }
+  }
+
+  /**
+   * Clear typing status for a sender when they send a message
+   * WhatsApp doesn't always send a "paused" presence update after sending
+   */
+  clearTypingForSender(senderId: string): void {
+    const chatPresences = new Map(this.state.chatPresences)
+    let hasChanges = false
+
+    // Find the LID for this sender (reverse lookup)
+    let senderLid: string | null = null
+    for (const [lid, phone] of this.state.lidToPhoneMap) {
+      if (phone === senderId) {
+        senderLid = lid
+        break
+      }
+    }
+
+    // Update all presences to remove typing for this sender
+    for (const [chatId, presence] of chatPresences) {
+      if (presence.presences) {
+        const updatedPresences = presence.presences.map((p) => {
+          // Match by LID or by phone ID directly
+          if (
+            (senderLid && p.participant === senderLid) ||
+            p.participant === senderId ||
+            p.participant.includes(senderId.replace(/@c\.us$/, ""))
+          ) {
+            if (p.lastKnownPresence === "typing" || p.lastKnownPresence === "recording") {
+              hasChanges = true
+              return { ...p, lastKnownPresence: "paused" as const }
+            }
+          }
+          return p
+        })
+        chatPresences.set(chatId, { ...presence, presences: updatedPresences })
+      }
+    }
+
+    if (hasChanges) {
+      debugLog("Presence", `Cleared typing for sender: ${senderId}`)
+      // Also update currentChatPresence if viewing the chat
+      if (this.state.currentChatPresence?.presences) {
+        const updatedCurrentPresences = this.state.currentChatPresence.presences.map((p) => {
+          if (
+            (senderLid && p.participant === senderLid) ||
+            p.participant === senderId ||
+            p.participant.includes(senderId.replace(/@c\.us$/, ""))
+          ) {
+            if (p.lastKnownPresence === "typing" || p.lastKnownPresence === "recording") {
+              return { ...p, lastKnownPresence: "paused" as const }
+            }
+          }
+          return p
+        })
+        this.setState({
+          chatPresences,
+          currentChatPresence: {
+            ...this.state.currentChatPresence,
+            presences: updatedCurrentPresences,
+          },
+          lastChangeType: "data",
+        })
+      } else {
+        this.setState({ chatPresences, lastChangeType: "data" })
+      }
+    }
+  }
+
+  /**
+   * Check if any participant in a chat is typing
+   * Uses LID mapping to match presence updates to chat IDs
+   */
+  isChatTyping(chatId: string): boolean {
+    // Check all stored presences for typing status
+    for (const [, presence] of this.state.chatPresences) {
+      const typingPresence = presence.presences?.find(
+        (p) => p.lastKnownPresence === "typing" || p.lastKnownPresence === "recording"
+      )
+      if (typingPresence) {
+        // Try to map the LID participant to a phone number
+        const participantLid = typingPresence.participant
+        const phoneNumber = this.state.lidToPhoneMap.get(participantLid)
+
+        // Match if:
+        // 1. Phone number matches the chatId (1:1 chat)
+        if (phoneNumber === chatId) {
+          debugLog("Presence", `isChatTyping: MATCH by exact phone number`)
+          return true
+        }
+        // Also try partial match (phone number without suffix)
+        if (phoneNumber && chatId.startsWith(phoneNumber.replace(/@c\.us$/, ""))) {
+          debugLog("Presence", `isChatTyping: MATCH by partial phone number`)
+          return true
+        }
+        // Fallback: if no mapping, check if participant starts with chatId base
+        const chatIdBase = chatId.replace(/@c\.us$/, "")
+        if (participantLid.includes(chatIdBase)) {
+          debugLog("Presence", `isChatTyping: MATCH by chatId base in LID`)
+          return true
+        }
+      }
+    }
+    return false
+  }
+
+  /**
+   * Get the typing status for chat list display
+   * Returns true only for the current chat since we only subscribe to one chat's presence
+   */
+  getTypingForChatList(): string | null {
+    if (!this.state.currentChatId) return null
+
+    for (const [, presence] of this.state.chatPresences) {
+      const typingPresence = presence.presences?.find(
+        (p) => p.lastKnownPresence === "typing" || p.lastKnownPresence === "recording"
+      )
+      if (typingPresence) {
+        // Try to map the LID participant to a phone number
+        const participantLid = typingPresence.participant
+        const phoneNumber = this.state.lidToPhoneMap.get(participantLid) || participantLid
+        return phoneNumber
+      }
+    }
+    return null
+  }
+
+  /**
+   * Set the LID to phone number mapping
+   */
+  setLidToPhoneMap(lidToPhoneMap: Map<string, string>): void {
+    this.setState({ lidToPhoneMap })
+  }
+
+  /**
+   * Add entries to the LID to phone number mapping
+   */
+  addLidMappings(mappings: Array<{ lid?: string; pn?: string }>): void {
+    const newMap = new Map(this.state.lidToPhoneMap)
+    for (const mapping of mappings) {
+      if (mapping.lid && mapping.pn) {
+        newMap.set(mapping.lid, mapping.pn)
+      }
+    }
+    this.setState({ lidToPhoneMap: newMap })
+  }
+
+  /**
+   * Get phone number (@c.us) from LID (@lid)
+   */
+  getPhoneFromLid(lid: string): string | undefined {
+    return this.state.lidToPhoneMap.get(lid)
   }
 
   setCurrentChatParticipants(currentChatParticipants: GroupParticipant[] | null): void {

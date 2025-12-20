@@ -66,7 +66,43 @@ export class WebSocketService {
       // Add query params
       const params = new URLSearchParams()
       params.append("session", "*") // Listen to all sessions (or filter if needed)
-      params.append("events", "*") // Listen to all events
+
+      // Subscribe to all possible events explicitly
+      const allEvents = [
+        "session.status",
+        "message",
+        "message.reaction",
+        "message.any",
+        "message.ack",
+        "message.ack.group",
+        "message.waiting",
+        "message.revoked",
+        "message.edited",
+        "state.change",
+        "group.join",
+        "group.leave",
+        "group.v2.join",
+        "group.v2.leave",
+        "group.v2.update",
+        "group.v2.participants",
+        "presence.update",
+        "poll.vote",
+        "poll.vote.failed",
+        "chat.archive",
+        "call.received",
+        "call.accepted",
+        "call.rejected",
+        "label.upsert",
+        "label.deleted",
+        "label.chat.added",
+        "label.chat.deleted",
+        "event.response",
+        "event.response.failed",
+        "engine.event",
+      ]
+      for (const event of allEvents) {
+        params.append("events", event)
+      }
 
       if (this.config.wahaApiKey) {
         params.append("x-api-key", this.config.wahaApiKey)
@@ -144,7 +180,7 @@ export class WebSocketService {
   }
 
   private async processEvent(data: WahaEvent) {
-    // debugLog("WebSocket", `Event: ${data.event}`)
+    debugLog("WebSocket", `Event: ${data.event}`)
 
     // Check if event is for the current session
     const state = appState.getState()
@@ -176,7 +212,7 @@ export class WebSocketService {
         this.handlePresenceUpdate(data as { event: "presence.update"; payload: WAHAChatPresences })
         break
       default:
-        // debugLog("WebSocket", `Unhandled event: ${data.event}`)
+        debugLog("WebSocket", `Unhandled event: ${data.event}`)
         break
     }
   }
@@ -195,6 +231,11 @@ export class WebSocketService {
     // For incoming messages: payload.from
     // For outgoing messages: payload.to
     const chatId = payload.fromMe ? payload.to : payload.from
+
+    // Clear typing status for sender - WhatsApp doesn't always send "paused" presence after sending
+    if (!payload.fromMe && payload.from) {
+      appState.clearTypingForSender(payload.from)
+    }
 
     // If we are currently viewing this chat, append the message
     const state = appState.getState()
@@ -248,8 +289,22 @@ export class WebSocketService {
 
   private handlePresenceUpdate(data: { payload: WAHAChatPresences }) {
     const payload = data.payload
-    // Assuming payload has id (chatId) and presences array
+    const state = appState.getState()
+
+    debugLog(
+      "WebSocket",
+      `Presence update for: ${payload?.id}, current chat: ${state.currentChatId}`
+    )
+
     if (payload && payload.id) {
+      // Log the presence data
+      const presenceInfo = payload.presences?.[0]
+      if (presenceInfo) {
+        debugLog(
+          "WebSocket",
+          `Presence: ${presenceInfo.participant} -> ${presenceInfo.lastKnownPresence}`
+        )
+      }
       appState.updateChatPresence(payload.id, payload)
     }
   }

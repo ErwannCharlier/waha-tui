@@ -156,29 +156,32 @@ export function ConversationView() {
     }
   } else {
     // Direct chat: show presence
-    const presence = state.currentChatPresence
-    if (presence?.presences && presence.presences.length > 0) {
-      // In 1:1, there's usually only one presence entry for the other person
-      // But we should filter by the chat ID just in case
-      const p =
-        presence.presences.find((p) => p.participant.startsWith(state.currentChatId!)) ||
-        presence.presences[0]
-
-      if (p) {
-        if (p.lastKnownPresence === "typing" || p.lastKnownPresence === "recording") {
-          headerSubtitle = "typing..."
-          headerSubtitleColor = WhatsAppTheme.green
-        } else if (p.lastKnownPresence === "online") {
-          headerSubtitle = "online"
-        } else if (p.lastSeen) {
-          headerSubtitle = formatLastSeen(p.lastSeen)
-        }
-      }
+    // Use isChatTyping for consistent typing detection with chat list
+    if (state.currentChatId && appState.isChatTyping(state.currentChatId)) {
+      headerSubtitle = "typing..."
+      headerSubtitleColor = WhatsAppTheme.textSecondary // Gray like WhatsApp Web header
     } else {
-      // Trigger load if not present (could also poll)
-      // loadChatDetails checks cache internally or we can throttle
-      headerSubtitle = ""
-      loadChatDetails(state.currentChatId)
+      // Not typing - show regular presence status
+      const presence = state.currentChatPresence
+      if (presence?.presences && presence.presences.length > 0) {
+        // Find the best presence to display (prefer online, then last seen)
+        const onlinePresence = presence.presences.find((p) => p.lastKnownPresence === "online")
+        const presenceToShow = onlinePresence || presence.presences[0]
+
+        if (presenceToShow) {
+          if (presenceToShow.lastKnownPresence === "online") {
+            headerSubtitle = "online"
+          } else if (presenceToShow.lastSeen) {
+            headerSubtitle = formatLastSeen(presenceToShow.lastSeen)
+          } else {
+            headerSubtitle = "" // Don't show "offline" or "paused"
+          }
+        }
+      } else {
+        // Trigger load if not present
+        headerSubtitle = ""
+        loadChatDetails(state.currentChatId!)
+      }
     }
   }
 

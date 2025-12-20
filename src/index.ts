@@ -26,6 +26,10 @@ import {
   loadContacts,
   loadOlderMessages,
   fetchMyProfile,
+  startPresenceManagement,
+  stopPresenceManagement,
+  markActivity,
+  loadLidMappings,
 } from "./client"
 import { appState } from "./state/AppState"
 import { Footer } from "./components/Footer"
@@ -249,6 +253,7 @@ async function main() {
     appState.setCurrentSession(workingSession.name)
     appState.setCurrentView("chats")
     await loadChats()
+    loadLidMappings() // Preload LID mappings for presence matching
     webSocketService.connect() // Connect also if already working
     fetchMyProfile() // Fetch profile for "You" identification
   } else {
@@ -469,6 +474,11 @@ async function main() {
 
     // Get latest state at the beginning of handler
     const state = appState.getState()
+
+    // Mark activity to keep session "online" when user is active in a conversation
+    if (state.currentView === "conversation") {
+      markActivity()
+    }
 
     // Helper to determine the current list of chats being displayed
     const getCurrentFilteredChats = () => {
@@ -798,6 +808,8 @@ async function main() {
           // Load contacts in background to populate cache
           loadContacts()
           await loadMessages(chatId)
+          // Start presence management (online/offline + re-subscribe)
+          startPresenceManagement(chatId)
         }
       }
     }
@@ -912,6 +924,7 @@ async function main() {
           blurMessageInput()
         } else {
           // Go back to chats
+          stopPresenceManagement()
           appState.setCurrentView("chats")
           appState.setCurrentChat(null)
         }
