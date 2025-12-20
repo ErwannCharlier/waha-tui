@@ -284,7 +284,7 @@ export async function reactToMessage(messageId: string, reaction: string): Promi
 
 export async function loadMessages(chatId: string): Promise<void> {
   try {
-    debugLog("Messages", `Loading messages for chat: ${chatId}`)
+    // Polling-related log removed to reduce spam
     const wahaClient = getClient()
     const session = getSession()
     const response = await wahaClient.chats.chatsControllerGetChatMessages(session, chatId, {
@@ -294,7 +294,7 @@ export async function loadMessages(chatId: string): Promise<void> {
       sortOrder: "desc",
     })
     const messages = (response.data as unknown as WAMessage[]) || []
-    debugLog("Messages", `Loaded ${messages.length} messages`)
+    // Polling-related log removed to reduce spam
     appState.setMessages(chatId, messages)
   } catch (error) {
     debugLog("Messages", `Failed to load messages: ${error}`)

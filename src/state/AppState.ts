@@ -351,6 +351,19 @@ class StateManager {
     }
   }
 
+  // Context menu action callback (set by index.ts)
+  private contextMenuActionCallback: ((actionId: string) => void) | null = null
+
+  setContextMenuActionCallback(callback: (actionId: string) => void): void {
+    this.contextMenuActionCallback = callback
+  }
+
+  triggerContextMenuAction(actionId: string): void {
+    if (this.contextMenuActionCallback) {
+      this.contextMenuActionCallback(actionId)
+    }
+  }
+
   // Reply methods
   setReplyingToMessage(message: WAMessage | null): void {
     this.setState({ replyingToMessage: message })

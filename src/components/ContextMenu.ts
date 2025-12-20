@@ -3,7 +3,7 @@
  * Floating menu overlay for chat and message actions
  */
 
-import { Box, ProxiedVNode, Text, type BoxRenderable } from "@opentui/core"
+import { Box, ProxiedVNode, BoxRenderable, TextRenderable } from "@opentui/core"
 import { WhatsAppTheme, Icons } from "../config/theme"
 import { appState, type ContextMenuType } from "../state/AppState"
 import type { ChatSummary, WAMessage } from "@muhammedaksam/waha-node"
@@ -127,6 +127,9 @@ export function ContextMenu(): ProxiedVNode<typeof BoxRenderable> | null {
   const menuWidth = 24 // Fixed width for menu
 
   // Build menu items
+  const renderer = getRenderer()
+
+  // Build menu items using imperative API for mouse handlers
   const menuItems = items.map((item, index) => {
     const isSelected = index === contextMenu.selectedIndex
     const textColor = item.destructive
@@ -137,7 +140,8 @@ export function ContextMenu(): ProxiedVNode<typeof BoxRenderable> | null {
 
     const bgColor = isSelected ? WhatsAppTheme.hoverBg : WhatsAppTheme.panelDark
 
-    return Box(
+    // Container for separator + item
+    const container = Box(
       {
         height: item.separator ? 2 : 1,
         width: menuWidth,
@@ -152,32 +156,53 @@ export function ContextMenu(): ProxiedVNode<typeof BoxRenderable> | null {
               backgroundColor: WhatsAppTheme.borderLight,
             }),
           ]
-        : []),
-      // Menu item row
-      Box(
-        {
-          height: 1,
-          width: menuWidth,
-          flexDirection: "row",
-          backgroundColor: bgColor,
-          paddingLeft: 1,
-          paddingRight: 1,
-        },
-        // Icon
-        Text({
-          content: item.icon || " ",
-          fg: textColor,
-        }),
-        Text({
-          content: " ",
-        }),
-        // Label
-        Text({
-          content: item.label,
-          fg: textColor,
-        })
-      )
+        : [])
     )
+
+    // Create menu item row imperatively for mouse support
+    const menuItemRow = new BoxRenderable(renderer, {
+      height: 1,
+      width: menuWidth,
+      flexDirection: "row",
+      backgroundColor: bgColor,
+      paddingLeft: 1,
+      paddingRight: 1,
+      onMouse(event) {
+        if (event.type === "down" && event.button === 0) {
+          // Left click
+          if (!item.disabled) {
+            appState.setContextMenuSelectedIndex(index)
+            // Emit a custom event that index.ts listens for
+            appState.triggerContextMenuAction(item.id)
+          }
+          event.stopPropagation()
+        }
+      },
+    })
+
+    // Add text content to menu row
+    menuItemRow.add(
+      new TextRenderable(renderer, {
+        content: item.icon || " ",
+        fg: textColor,
+      })
+    )
+    menuItemRow.add(
+      new TextRenderable(renderer, {
+        content: " ",
+      })
+    )
+    menuItemRow.add(
+      new TextRenderable(renderer, {
+        content: item.label,
+        fg: textColor,
+      })
+    )
+
+    // Add the row to container
+    container.add(menuItemRow)
+
+    return container
   })
 
   // Calculate menu height
