@@ -306,55 +306,86 @@ export async function loadMessages(chatId: string): Promise<void> {
 // Utility Functions
 // ============================================
 
+interface ClipboardTool {
+  command: string
+  args: string[]
+}
+
+/**
+ * Try to copy text using a specific clipboard tool
+ */
+async function tryClipboardTool(text: string, tool: ClipboardTool): Promise<boolean> {
+  const { spawn } = await import("child_process")
+
+  return new Promise((resolve) => {
+    const proc = spawn(tool.command, tool.args, {
+      stdio: ["pipe", "ignore", "ignore"],
+    })
+
+    proc.stdin?.write(text)
+    proc.stdin?.end()
+
+    proc.on("close", (code) => {
+      if (code === 0) {
+        debugLog("Client", `Copied to clipboard using ${tool.command}`)
+        resolve(true)
+      } else {
+        resolve(false)
+      }
+    })
+
+    proc.on("error", () => {
+      resolve(false)
+    })
+  })
+}
+
 /**
  * Copy text to system clipboard using platform-specific command
  * Returns true if successful, false otherwise
+ *
+ * Linux fallback order: wl-copy (Wayland) -> xclip (X11) -> xsel (X11)
  */
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
-    const { spawn } = await import("child_process")
     const platform = process.platform
 
-    let clipboardCommand: string
-    let args: string[]
-
     if (platform === "darwin") {
-      // macOS
-      clipboardCommand = "pbcopy"
-      args = []
-    } else if (platform === "linux") {
-      // Linux - try xclip first, then xsel
-      clipboardCommand = "xclip"
-      args = ["-selection", "clipboard"]
+      // macOS - use pbcopy
+      const success = await tryClipboardTool(text, { command: "pbcopy", args: [] })
+      if (success) {
+        debugLog("Client", `Copied: ${text.substring(0, 50)}...`)
+      }
+      return success
     } else if (platform === "win32") {
-      // Windows
-      clipboardCommand = "clip"
-      args = []
+      // Windows - use clip
+      const success = await tryClipboardTool(text, { command: "clip", args: [] })
+      if (success) {
+        debugLog("Client", `Copied: ${text.substring(0, 50)}...`)
+      }
+      return success
+    } else if (platform === "linux") {
+      // Linux - try multiple clipboard tools in order of preference
+      const linuxTools: ClipboardTool[] = [
+        { command: "wl-copy", args: [] }, // Wayland (GNOME, KDE on Wayland)
+        { command: "xclip", args: ["-selection", "clipboard"] }, // X11
+        { command: "xsel", args: ["--clipboard", "--input"] }, // X11 alternative
+      ]
+
+      for (const tool of linuxTools) {
+        const success = await tryClipboardTool(text, tool)
+        if (success) {
+          debugLog("Client", `Copied: ${text.substring(0, 50)}...`)
+          return true
+        }
+      }
+
+      debugLog("Client", "No clipboard tool available. Install wl-copy, xclip, or xsel.")
+      return false
     } else {
       debugLog("Client", `Clipboard not supported on platform: ${platform}`)
       return false
     }
-
-    return new Promise((resolve) => {
-      const proc = spawn(clipboardCommand, args, { stdio: ["pipe", "ignore", "ignore"] })
-
-      proc.stdin?.write(text)
-      proc.stdin?.end()
-
-      proc.on("close", (code) => {
-        if (code === 0) {
-          debugLog("Client", `Copied to clipboard: ${text.substring(0, 50)}...`)
-          resolve(true)
-        } else {
-          debugLog("Client", `Clipboard command failed with code: ${code}`)
-          resolve(false)
-        }
-      })
-      proc.on("error", (err) => {
-        debugLog("Client", `Clipboard error: ${err.message}`)
-        resolve(false)
-      })
-    })
   } catch (error) {
     debugLog("Client", `Failed to copy to clipboard: ${error}`)
     return false
