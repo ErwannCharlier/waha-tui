@@ -368,7 +368,6 @@ export function ConversationView() {
       alignItems: "center",
       paddingLeft: 1,
       paddingRight: 1,
-      marginTop: 1,
       backgroundColor: WhatsAppTheme.panelLight,
       border: true,
       borderColor: WhatsAppTheme.borderLight,
