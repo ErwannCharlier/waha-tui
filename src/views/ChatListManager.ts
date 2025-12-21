@@ -12,7 +12,7 @@ import {
 } from "@opentui/core"
 import type { CliRenderer } from "@opentui/core"
 import type { ChatSummary } from "@muhammedaksam/waha-node"
-import { WhatsAppTheme } from "../config/theme"
+import { WhatsAppTheme, Icons } from "../config/theme"
 import {
   truncate,
   extractMessagePreview,
@@ -25,6 +25,7 @@ import { appState } from "../state/AppState"
 import { destroyConversationScrollBox } from "./ConversationView"
 import { ROW_HEIGHT } from "../utils/chatListScroll"
 import { loadContacts, loadMessages, startPresenceManagement } from "../client"
+import { isPinned } from "../utils/filterChats"
 
 interface ChatRowData {
   box: BoxRenderable
@@ -296,11 +297,30 @@ class ChatListManager {
     })
     nameRow.add(nameText)
 
+    // Time and pin indicator container
+    const timeContainer = new BoxRenderable(renderer, {
+      id: `time-container-${index}`,
+      flexDirection: "row",
+      gap: 1,
+    })
+
     const timeText = new TextRenderable(renderer, {
       content: preview.timestamp,
       fg: WhatsAppTheme.textTertiary,
     })
-    nameRow.add(timeText)
+    timeContainer.add(timeText)
+
+    // Add pin icon if chat is pinned
+    if (isPinned(chat)) {
+      timeContainer.add(
+        new TextRenderable(renderer, {
+          content: Icons.pin,
+          fg: WhatsAppTheme.textTertiary,
+        })
+      )
+    }
+
+    nameRow.add(timeContainer)
     chatInfo.add(nameRow)
 
     // Last message row

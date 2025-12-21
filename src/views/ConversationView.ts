@@ -729,7 +729,8 @@ function renderReplyContext(
   isGroupChat: boolean,
   chatId: string,
   quotedParticipantId?: string,
-  participants?: string[]
+  participants?: string[],
+  isSelfChatFlag?: boolean
 ): BoxRenderable | null {
   if (!replyTo) return null
 
@@ -738,6 +739,16 @@ function renderReplyContext(
 
   // Cast _data to access potential nested fields
   const replyData = replyTo._data as Record<string, unknown> | undefined
+
+  // Check if quoted message is from me directly from replyTo fields
+  // This is more reliable than ID comparison for group chats
+  const replyToFromMe =
+    (replyTo as { fromMe?: boolean }).fromMe === true || replyData?.fromMe === true
+
+  debugLog(
+    "renderReplyContext",
+    `replyTo keys: ${Object.keys(replyTo).join(", ")}, replyData?.fromMe=${replyData?.fromMe}, replyToFromMe=${replyToFromMe}`
+  )
 
   // Extract sender ID - priority:
   // 1. Explicit participant field in replyTo
@@ -761,10 +772,16 @@ function renderReplyContext(
   // WAHA CORE workaround: Look up the original message by ID to find the sender
   // This is more reliable than inference because it finds the actual message
   const myProfileId = appState.getState().myProfile?.id
-  let isQuotedFromMe = quotedSenderId !== "" && quotedSenderId === myProfileId
+  // Use isSelfChat for proper ID comparison (handles @c.us suffix differences)
+  // In self-chats, ALL quoted messages are from "me" since it's a chat with yourself
+  // Also use replyToFromMe flag from replyTo object (handles group chat quotes with @lid IDs)
+  let isQuotedFromMe =
+    replyToFromMe ||
+    isSelfChatFlag ||
+    (quotedSenderId !== "" && isSelfChat(quotedSenderId, myProfileId ?? null))
 
-  if (!quotedSenderId && replyTo.id) {
-    // Try to find the quoted message in our loaded messages
+  // Always try to find the quoted message in cache - fromMe is the authoritative source
+  if (replyTo.id) {
     const state = appState.getState()
     const messages = state.messages.get(state.currentChatId || "") || []
     const quotedMessage = messages.find(
@@ -772,7 +789,7 @@ function renderReplyContext(
     )
 
     if (quotedMessage) {
-      // Found the original message - use its sender info
+      // Found the original message - use its fromMe flag (authoritative)
       isQuotedFromMe = quotedMessage.fromMe
       if (!isQuotedFromMe) {
         // Get sender ID from the quoted message
@@ -780,14 +797,14 @@ function renderReplyContext(
       } else {
         quotedSenderId = myProfileId || ""
       }
-    } else if (!isGroupChat && chatId) {
-      // Fallback for 1:1 chats when message not in cache
+    } else if (!quotedSenderId && !isGroupChat && chatId) {
+      // Fallback for 1:1 chats when message not in cache and no sender ID extracted
       // In 1:1, there are only 2 people: me and the other person (chatId)
       // Best heuristic: assume reply is to the OTHER person's message (most common pattern)
       if (isFromMe) {
         // I'm replying -> most likely quoting them
         quotedSenderId = chatId
-        isQuotedFromMe = chatId === myProfileId // Handle self-chat case
+        isQuotedFromMe = isSelfChat(chatId, myProfileId ?? null) // Handle self-chat case
       } else {
         // They're replying -> most likely quoting me
         quotedSenderId = myProfileId || ""
@@ -1097,16 +1114,21 @@ function renderMessage(
 
   // Row 1.5: Reply context (if this message is a reply)
   if (message.replyTo) {
-    const chatId = message.from || message.to || ""
+    const msgChatId = message.from || message.to || ""
+    // Check if this is a self-chat (chatting with yourself)
+    const currentChatId = appState.getState().currentChatId || ""
+    const myId = appState.getState().myProfile?.id || null
+    const isSelfChatFlag = isSelfChat(currentChatId, myId)
     const replyContext = renderReplyContext(
       renderer,
       message.replyTo,
       msgId,
       isFromMe,
       isGroupChat,
-      chatId,
+      msgChatId,
       quotedParticipantId, // Pass extracted sender ID
-      participants
+      participants,
+      isSelfChatFlag // Pass self-chat flag
     )
     if (replyContext) {
       bubble.add(replyContext)
