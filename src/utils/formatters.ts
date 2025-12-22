@@ -334,3 +334,16 @@ export function isSelfChat(chatId: string, myProfileId: string | null): boolean 
   const normalizedProfileId = myProfileId.replace(/@(c\.us|lid)$/, "")
   return normalizedChatId === normalizedProfileId
 }
+
+/**
+ * Extract chat ID string from ChatSummary.id
+ * Handles both string IDs and object IDs with _serialized field
+ * Use this helper for consistent chat ID comparison across the app
+ */
+export function getChatIdString(
+  id: string | { _serialized: string; [key: string]: unknown } | undefined | null
+): string {
+  if (!id) return ""
+  if (typeof id === "string") return id
+  return id._serialized || ""
+}

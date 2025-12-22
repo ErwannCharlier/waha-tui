@@ -31,6 +31,7 @@ import {
   getInitials,
   isGroupChat,
   isSelfChat,
+  getChatIdString,
 } from "../utils/formatters"
 
 // Cache for conversation scroll box and input
@@ -82,12 +83,7 @@ export function ConversationView() {
   const isSelf = isSelfChat(state.currentChatId, state.myProfile?.id ?? null)
 
   // Get current chat info
-  // Note: chat.id might be an object with _serialized, so we need to normalize for comparison
-  const currentChat = state.chats.find((chat) => {
-    const chatId =
-      typeof chat.id === "string" ? chat.id : (chat.id as { _serialized: string })._serialized
-    return chatId === state.currentChatId
-  })
+  const currentChat = state.chats.find((chat) => getChatIdString(chat.id) === state.currentChatId)
   const baseChatName = currentChat?.name || state.currentChatId
   // Add "(You)" suffix for self-chat
   const chatName = isSelf ? `${baseChatName} (You)` : baseChatName

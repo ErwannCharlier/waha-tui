@@ -56,6 +56,7 @@ import type { WahaTuiConfig } from "./config/schema"
 import { initDebug, debugLog } from "./utils/debug"
 import { calculateChatListScrollOffset } from "./utils/chatListScroll"
 import { filterChats, isArchived } from "./utils/filterChats"
+import { getChatIdString } from "./utils/formatters"
 
 import { webSocketService } from "./services/WebSocketService"
 import { ConfigView } from "./views/ConfigView"
@@ -654,10 +655,7 @@ async function main() {
       const filteredChats = getCurrentFilteredChats()
       const selectedChat = filteredChats[state.selectedChatIndex]
       if (selectedChat) {
-        const chatId =
-          typeof selectedChat.id === "string"
-            ? selectedChat.id
-            : (selectedChat.id as { _serialized: string })._serialized
+        const chatId = getChatIdString(selectedChat.id)
         appState.openContextMenu("chat", chatId, selectedChat)
         debugLog("ContextMenu", `Opened chat context menu for: ${chatId}`)
       }
@@ -796,10 +794,7 @@ async function main() {
         const selectedChat = filteredChats[state.selectedChatIndex]
         if (selectedChat && state.currentSession) {
           // ChatSummary.id is typed as string but runtime returns an object with _serialized
-          const chatId =
-            typeof selectedChat.id === "string"
-              ? selectedChat.id
-              : (selectedChat.id as { _serialized: string })._serialized
+          const chatId = getChatIdString(selectedChat.id)
 
           debugLog("App", `Selected chat: ${selectedChat.name || chatId}`)
           appState.setCurrentChat(chatId)
