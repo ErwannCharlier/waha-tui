@@ -186,7 +186,7 @@ async function main() {
         renderer.destroy()
       }
     } catch (error) {
-      // Ignore cleanup errors
+      debugLog("App", `Error during cleanup: ${error}`)
     }
   }
 
