@@ -10,7 +10,11 @@
 
 > ⚠️ **Work In Progress** - This project is in early experimental development. Features may be incomplete, unstable, or change without notice.
 
-A beautiful Terminal User Interface for WhatsApp using [WAHA (WhatsApp HTTP API)](https://github.com/devlikeapro/waha). Manage your WhatsApp sessions, chats, and messages directly from your terminal with an intuitive TUI powered by [OpenTUI](https://opentui.app).
+A beautiful Terminal User Interface for WhatsApp using [WAHA (WhatsApp HTTP API)](https://github.com/devlikeapro/waha). Manage your WhatsApp sessions, chats, and messages directly from your terminal with an intuitive TUI powered by [OpenTUI](https://opentui.com).
+
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/151a3ce4-fbf2-477a-83e7-3bc77e59a980" width="90%" autoplay loop muted></video>
+</p>
 
 ## Features
 
@@ -21,6 +25,21 @@ A beautiful Terminal User Interface for WhatsApp using [WAHA (WhatsApp HTTP API)
 - ⚡ **Fast & Lightweight** - Built with Bun for blazing-fast performance
 - 🔒 **Secure** - All configuration stored locally in `~/.waha-tui/`
 - 🔄 **Auto-Refresh** - QR codes refresh automatically, status updates in real-time
+
+## Screenshots
+
+<p align="center">
+  <img src=".github/media/images/01-configuration.png" width="45%" alt="Configuration" />
+  <img src=".github/media/images/02-connect.png" width="45%" alt="Connect" />
+</p>
+<p align="center">
+  <img src=".github/media/images/03-qr-code-login.png" width="45%" alt="QR Code Login" />
+  <img src=".github/media/images/04-loading.png" width="45%" alt="Loading" />
+</p>
+<p align="center">
+  <img src=".github/media/images/05-main-screen.png" width="45%" alt="Main Screen" />
+  <img src=".github/media/images/06-conversation-view.png" width="45%" alt="Conversation View" />
+</p>
 
 ## Quick Start
 
@@ -199,7 +218,7 @@ waha-tui/
 ## Technologies
 
 - **Runtime**: [Bun](https://bun.sh)
-- **UI Framework**: [OpenTUI](https://opentui.app)
+- **UI Framework**: [OpenTUI](https://opentui.com)
 - **WAHA SDK**: [@muhammedaksam/waha-node](https://www.npmjs.com/package/@muhammedaksam/waha-node)
 - **TypeScript**: Type-safe development
 
@@ -225,4 +244,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [WAHA HTTP API](https://github.com/devlikeapro/waha) - WhatsApp HTTP API
 - [WAHA Node SDK](https://github.com/muhammedaksam/waha-node) - TypeScript SDK for WAHA
-- [OpenTUI](https://opentui.app) - Terminal UI framework used by waha-tui
+- [OpenTUI](https://opentui.com) - Terminal UI framework used by waha-tui
