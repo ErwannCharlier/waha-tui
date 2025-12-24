@@ -227,6 +227,10 @@ waha-tui/
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
+## Security
+
+See [SECURITY.md](SECURITY.md) for security policy and reporting vulnerabilities.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
