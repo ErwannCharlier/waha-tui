@@ -208,8 +208,9 @@ export function renderMessage(
   if (message.replyTo) {
     const msgChatId = message.from || message.to || ""
     // Check if this is a self-chat (chatting with yourself)
-    const currentChatId = appState.getState().currentChatId || ""
-    const myId = appState.getState().myProfile?.id || null
+    const state = appState.getState()
+    const currentChatId = state.currentChatId || ""
+    const myId = state.myProfile?.id || null
     const isSelfChatFlag = isSelfChat(currentChatId, myId)
     const replyContext = renderReplyContext(
       renderer,
