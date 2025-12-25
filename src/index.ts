@@ -294,8 +294,18 @@ async function main() {
   // Load saved settings
   try {
     const savedSettings = await getSettings()
-    appState.setState({ enterIsSend: savedSettings.enterIsSend })
-    debugLog("Settings", `Loaded settings: enterIsSend=${savedSettings.enterIsSend}`)
+    appState.setState({
+      enterIsSend: savedSettings.enterIsSend,
+      messageNotifications: savedSettings.messageNotifications,
+      groupNotifications: savedSettings.groupNotifications,
+      statusNotifications: savedSettings.statusNotifications,
+      showPreviews: savedSettings.showPreviews,
+      backgroundSync: savedSettings.backgroundSync,
+    })
+    debugLog(
+      "Settings",
+      `Loaded settings: enterIsSend=${savedSettings.enterIsSend}, msgNotif=${savedSettings.messageNotifications.showNotifications}`
+    )
   } catch (error) {
     debugLog("Settings", `Failed to load settings: ${error}`)
   }
@@ -892,6 +902,13 @@ async function main() {
             currentView: "chats",
             activeIcon: "chats",
           })
+        } else if (
+          state.settingsPage === "notifications-messages" ||
+          state.settingsPage === "notifications-groups" ||
+          state.settingsPage === "notifications-status"
+        ) {
+          // Go back to notifications page
+          appState.setState({ settingsPage: "notifications", settingsSubIndex: 0 })
         } else {
           // Go back to main settings menu
           appState.setState({ settingsPage: "main", settingsSelectedIndex: 0 })
@@ -946,6 +963,39 @@ async function main() {
 
     // Settings sub-page key handlers (when in a sub-page, not main menu)
     if (state.currentView === "settings" && state.settingsPage !== "main") {
+      // Determine max items based on current page
+      const getMaxItems = () => {
+        switch (state.settingsPage) {
+          case "chats":
+            return 1 // Only "Enter is send"
+          case "notifications":
+            return 5 // Messages, Groups, Status, Show previews, Background sync
+          case "notifications-messages":
+          case "notifications-groups":
+          case "notifications-status":
+            return 3 // Show notifications, Show reaction notifications, Play sound
+          default:
+            return 0
+        }
+      }
+      const maxItems = getMaxItems()
+
+      // j/k or up/down for navigation within sub-page
+      if (key.name === "j" || key.name === "down") {
+        if (maxItems > 0) {
+          const newIndex = Math.min(maxItems - 1, state.settingsSubIndex + 1)
+          appState.setState({ settingsSubIndex: newIndex })
+        }
+        return
+      }
+      if (key.name === "k" || key.name === "up") {
+        if (maxItems > 0) {
+          const newIndex = Math.max(0, state.settingsSubIndex - 1)
+          appState.setState({ settingsSubIndex: newIndex })
+        }
+        return
+      }
+
       // Toggle settings with Enter or Space
       if (key.name === "return" || key.name === "enter" || key.name === "space") {
         if (state.settingsPage === "chats") {
@@ -957,6 +1007,84 @@ async function main() {
             // Persist to config
             await saveSettings({ enterIsSend: newValue })
           }
+        } else if (state.settingsPage === "notifications") {
+          // Navigation to sub-pages or toggle showPreviews
+          if (state.settingsSubIndex === 0) {
+            // Navigate to Messages settings
+            appState.setState({ settingsPage: "notifications-messages", settingsSubIndex: 0 })
+          } else if (state.settingsSubIndex === 1) {
+            // Navigate to Groups settings
+            appState.setState({ settingsPage: "notifications-groups", settingsSubIndex: 0 })
+          } else if (state.settingsSubIndex === 2) {
+            // Navigate to Status settings
+            appState.setState({ settingsPage: "notifications-status", settingsSubIndex: 0 })
+          } else if (state.settingsSubIndex === 3) {
+            // Toggle "Show previews"
+            const newValue = !state.showPreviews
+            appState.setState({ showPreviews: newValue })
+            debugLog("Settings", `Show previews: ${newValue}`)
+            await saveSettings({ showPreviews: newValue })
+          } else if (state.settingsSubIndex === 4) {
+            // Toggle "Background sync"
+            const newValue = !state.backgroundSync
+            appState.setState({ backgroundSync: newValue })
+            debugLog("Settings", `Background sync: ${newValue}`)
+            await saveSettings({ backgroundSync: newValue })
+          }
+        } else if (state.settingsPage === "notifications-messages") {
+          // Message notification toggles
+          const current = { ...state.messageNotifications }
+          if (state.settingsSubIndex === 0) {
+            current.showNotifications = !current.showNotifications
+            debugLog("Settings", `Message notifications: ${current.showNotifications}`)
+          } else if (state.settingsSubIndex === 1) {
+            current.showReactionNotifications = !current.showReactionNotifications
+            debugLog(
+              "Settings",
+              `Message reaction notifications: ${current.showReactionNotifications}`
+            )
+          } else if (state.settingsSubIndex === 2) {
+            current.playSound = !current.playSound
+            debugLog("Settings", `Message play sound: ${current.playSound}`)
+          }
+          appState.setState({ messageNotifications: current })
+          await saveSettings({ messageNotifications: current })
+        } else if (state.settingsPage === "notifications-groups") {
+          // Group notification toggles
+          const current = { ...state.groupNotifications }
+          if (state.settingsSubIndex === 0) {
+            current.showNotifications = !current.showNotifications
+            debugLog("Settings", `Group notifications: ${current.showNotifications}`)
+          } else if (state.settingsSubIndex === 1) {
+            current.showReactionNotifications = !current.showReactionNotifications
+            debugLog(
+              "Settings",
+              `Group reaction notifications: ${current.showReactionNotifications}`
+            )
+          } else if (state.settingsSubIndex === 2) {
+            current.playSound = !current.playSound
+            debugLog("Settings", `Group play sound: ${current.playSound}`)
+          }
+          appState.setState({ groupNotifications: current })
+          await saveSettings({ groupNotifications: current })
+        } else if (state.settingsPage === "notifications-status") {
+          // Status notification toggles
+          const current = { ...state.statusNotifications }
+          if (state.settingsSubIndex === 0) {
+            current.showNotifications = !current.showNotifications
+            debugLog("Settings", `Status notifications: ${current.showNotifications}`)
+          } else if (state.settingsSubIndex === 1) {
+            current.showReactionNotifications = !current.showReactionNotifications
+            debugLog(
+              "Settings",
+              `Status reaction notifications: ${current.showReactionNotifications}`
+            )
+          } else if (state.settingsSubIndex === 2) {
+            current.playSound = !current.playSound
+            debugLog("Settings", `Status play sound: ${current.playSound}`)
+          }
+          appState.setState({ statusNotifications: current })
+          await saveSettings({ statusNotifications: current })
         }
         return
       }
