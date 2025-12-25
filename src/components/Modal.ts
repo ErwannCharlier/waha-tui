@@ -5,9 +5,9 @@
 
 import { BoxRenderable, TextAttributes, TextRenderable } from "@opentui/core"
 
+import type { UpdateInfo } from "../utils/update-checker"
 import { WDSColors, WhatsAppTheme } from "../config/theme"
 import { getRenderer } from "../state/RendererContext"
-import { type UpdateInfo } from "../utils/update-checker"
 
 export interface ModalButton {
   label: string
