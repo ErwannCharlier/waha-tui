@@ -4,7 +4,7 @@
  */
 
 import type { ChatSummary } from "@muhammedaksam/waha-node"
-import { getChatIdString } from "./formatters"
+import { getChatIdString, isGroupChat } from "./formatters"
 
 export type SearchSection = "chats" | "contacts" | "messages"
 
@@ -54,7 +54,7 @@ export function searchChatsWithSections(
 
     // Section 2: Contacts - Search by contact name from cache
     // For group chats, skip contact search
-    if (!chatId.endsWith("@g.us")) {
+    if (!isGroupChat(chatId)) {
       const contactName = contactsCache.get(chatId)?.toLowerCase() ?? ""
       if (contactName && contactName.includes(query)) {
         results.contacts.push(chat)

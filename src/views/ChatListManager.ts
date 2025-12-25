@@ -21,6 +21,7 @@ import {
   isSelfChat,
   getChatIdString,
   type MessagePreview,
+  isGroupChat,
 } from "../utils/formatters"
 import { debugLog } from "../utils/debug"
 import { appState } from "../state/AppState"
@@ -184,13 +185,12 @@ class ChatListManager {
     // Extract message preview
     const preview = extractMessagePreview(chat.lastMessage)
     const chatIdStr = getChatIdString(chat.id)
-    const isGroupChat = chatIdStr.endsWith("@g.us")
     const isSelf = isSelfChat(chatIdStr, appState.getState().myProfile?.id ?? null)
     let lastMessageText = preview.text
     // Add "(You)" suffix for self-chat
     const displayName = isSelf ? `${chat.name || chat.id} (You)` : chat.name || chat.id
 
-    if (isGroupChat && preview.text !== "No messages") {
+    if (isGroupChat(chatIdStr) && preview.text !== "No messages") {
       if (preview.isFromMe) {
         lastMessageText = `You: ${preview.text}`
       }
@@ -416,11 +416,10 @@ class ChatListManager {
       // Prepare data
       const preview = extractMessagePreview(chat.lastMessage)
       const chatIdStr = getChatIdString(chat.id)
-      const isGroupChat = chatIdStr.endsWith("@g.us")
       const isSelf = isSelfChat(chatIdStr, appState.getState().myProfile?.id ?? null)
       const displayName = isSelf ? `${chat.name || chat.id} (You)` : chat.name || chat.id
       let lastMessageText = preview.text
-      if (isGroupChat && preview.text !== "No messages" && preview.isFromMe) {
+      if (isGroupChat(chatIdStr) && preview.text !== "No messages" && preview.isFromMe) {
         lastMessageText = `You: ${preview.text}`
       }
 
@@ -485,9 +484,8 @@ class ChatListManager {
         rowData.messageText.fg = WhatsAppTheme.green
       } else {
         // Always restore the message preview when not typing
-        const isGroupChat = chatId.endsWith("@g.us")
         let lastMessageText = preview.text
-        if (isGroupChat && preview.text !== "No messages" && preview.isFromMe) {
+        if (isGroupChat(chatId) && preview.text !== "No messages" && preview.isFromMe) {
           lastMessageText = `You: ${preview.text}`
         }
         rowData.messageText.content = truncate(lastMessageText, 50)

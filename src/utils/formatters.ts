@@ -321,6 +321,13 @@ export function isGroupChat(chatId: string): boolean {
 }
 
 /**
+ * Check if a chat ID is a status broadcast (WhatsApp Status updates)
+ */
+export function isStatusBroadcast(chatId: string): boolean {
+  return chatId === "status@broadcast"
+}
+
+/**
  * Check if a chat ID is the user's own self-chat (Saved Messages)
  * Normalizes IDs by stripping @c.us and @lid suffixes for proper comparison
  * Note: WhatsApp uses different ID formats:
@@ -364,4 +371,30 @@ export function normalizeId(id: string | undefined | null): string {
 export function getPhoneNumber(id: string | undefined | null): string {
   if (!id) return ""
   return id.split("@")[0]
+}
+
+/**
+ * Get contact display name with fallbacks
+ * Priority: saved contact name → notifyName → phone number → "Unknown"
+ * @param contactId - The WhatsApp contact ID (e.g., "1234567890@c.us")
+ * @param contacts - Map of contact IDs to saved names
+ * @param notifyName - Optional notifyName from message data (WhatsApp push name)
+ * @returns The best available display name
+ */
+export function getContactName(
+  contactId: string | undefined | null,
+  contacts: Map<string, string>,
+  notifyName?: string
+): string {
+  if (!contactId) return "Unknown"
+
+  // Try saved contact name first
+  const savedName = contacts.get(contactId)
+  if (savedName) return savedName
+
+  // Fallback to notifyName (WhatsApp push name)
+  if (notifyName) return notifyName
+
+  // Fallback to phone number
+  return getPhoneNumber(contactId) || "Unknown"
 }

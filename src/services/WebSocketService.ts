@@ -5,7 +5,8 @@
 
 import { appState } from "../state/AppState"
 import { debugLog } from "../utils/debug"
-import { normalizeId } from "../utils/formatters"
+import { normalizeId, isGroupChat, getContactName, isStatusBroadcast } from "../utils/formatters"
+import { notifyNewMessage } from "../utils/notifications"
 import type { WahaTuiConfig } from "../config/schema"
 import { loadChats } from "../client"
 import {
@@ -197,7 +198,6 @@ export class WebSocketService {
         this.handleSessionStatus(data as WAHAWebhookSessionStatus)
         break
       case "message":
-      case "message.any":
         await this.handleMessageEvent(data as WAHAWebhookMessage)
         break
       case "message.ack":
@@ -246,6 +246,24 @@ export class WebSocketService {
     } else {
       debugLog("WebSocket", `New message in other chat: ${chatId}`)
       loadChats()
+
+      // Send desktop notification for messages not from self
+      if (!payload.fromMe) {
+        const isGroup = chatId ? isGroupChat(chatId) : false
+        const isStatus = chatId ? isStatusBroadcast(chatId) : false
+
+        // Cast _data to access internal WhatsApp properties
+        const messageData = payload._data as
+          | { notifyName?: string; chat?: { name?: string } }
+          | undefined
+
+        // Get sender name using utility (saved name → notifyName → phone)
+        const senderName = getContactName(payload.from, state.allContacts, messageData?.notifyName)
+
+        const messageBody = payload.body || "[Media]"
+        const groupName = isGroup ? messageData?.chat?.name : undefined
+        await notifyNewMessage(senderName, messageBody, isGroup, groupName, isStatus)
+      }
     }
   }
 
