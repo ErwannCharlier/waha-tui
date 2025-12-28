@@ -92,11 +92,9 @@ export function renderReplyContext(
         quotedSenderId = myProfileId || ""
       }
     } else if (!quotedSenderId && !isGroupChat && chatId) {
-      // Fallback for 1:1 chats when message not in cache and no sender ID extracted
-      // In 1:1, there are only 2 people: me and the other person (chatId)
-      // Best heuristic: assume reply is to the OTHER person's message (most common pattern)
+      // Fallback: in 1:1 chat, assume reply is to other person if I am sending
       if (isFromMe) {
-        // I'm replying -> most likely quoting them
+        // I'm replying -> quoting them
         quotedSenderId = chatId
         isQuotedFromMe = isSelfChat(chatId, myProfileId ?? null) // Handle self-chat case
       } else {

@@ -285,8 +285,7 @@ export function ChatsView() {
         const contacts = appState.getState().allContacts
         // If name unknown, use formatted number
         if (!contacts.has(chatId)) {
-          // We might want to set a temporary name?
-          // For now just allow the ID
+          // No saved contact name, using ID
         }
 
         await startNewChat(chatId)
@@ -294,7 +293,7 @@ export function ChatsView() {
         // Clear search after starting
         appState.setSearchQuery("")
       } else {
-        // Show error (for now just log, ideal would be toast/alert)
+        // Show error
         debugLog("ChatsView", `Invalid WhatsApp number: ${state.searchQuery}`)
       }
     })

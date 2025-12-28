@@ -28,29 +28,40 @@ bun dev:debug
 ## Project Structure
 
 ```bash
-src/
-├── client/                   # WAHA API client modules
-│   ├── core.ts               # Client initialization, axios interceptors
-│   ├── sessionActions.ts     # Session management
-│   ├── chatActions.ts        # Chat operations
-│   ├── messageActions.ts     # Message operations
-│   ├── presenceActions.ts    # Presence management
-│   └── index.ts              # Barrel exports
-├── components/               # UI components
-├── config/                   # Configuration management
-├── handlers/                 # Event handlers
-│   ├── keyboardHandler.ts    # Centralized keyboard handling
-│   ├── ContextMenuActions.ts # Context menu action execution
-│   └── index.ts              # Barrel exports
-├── services/                 # Business logic services
-│   ├── ErrorService.ts       # Centralized error handling
-│   ├── RetryService.ts       # Retry with exponential backoff
-│   └── WebSocketService.ts   # Real-time updates
-├── state/                    # Application state management
-├── types/                    # TypeScript type definitions
-├── utils/                    # Utility functions
-├── views/                    # View components
-└── index.ts                  # Application entry point
+waha-tui/
+├── src/
+│   ├── client/                     # WAHA API client (domain-split modules)
+│   │   ├── core.ts                 # Client initialization & utilities
+│   │   ├── chatActions.ts          # Chat operations (archive, delete, etc.)
+│   │   ├── messageActions.ts       # Message operations (send, star, react)
+│   │   ├── sessionActions.ts       # Session & contact management
+│   │   ├── presenceActions.ts      # Presence & activity management
+│   │   └── index.ts                # Barrel exports
+│   ├── components/                 # Reusable UI components
+│   ├── config/                     # Configuration management
+│   ├── handlers/                   # Action handlers
+│   │   ├── keyboardHandler.ts      # Centralized keyboard handling
+│   │   ├── ContextMenuActions.ts   # Context menu action execution
+│   │   └── index.ts                # Barrel exports
+│   ├── services/                   # Background services
+│   │   ├── ErrorService.ts         # Centralized error handling
+│   │   ├── RetryService.ts         # Retry with exponential backoff
+│   │   ├── WebSocketService.ts     # Real-time WebSocket updates
+│   ├── state/                      # Global state management
+│   ├── types/                      # TypeScript type definitions
+│   ├── utils/                      # Utility functions
+│   ├── views/                      # Main application views
+│   │   ├── conversation/           # Conversation view modules
+│   │   │   ├── MessageHelpers.ts   # Sender colors, date formatting
+│   │   │   ├── MessageRenderer.ts  # Message bubble rendering
+│   │   │   ├── ReplyContext.ts     # Reply/quote rendering
+│   │   │   └── index.ts
+│   │   └── ...
+│   └── index.ts                    # Main entry point
+├── .github/
+│   ├── workflows/                  # CI/CD workflows
+│   └── actions/                    # Reusable actions
+└── package.json
 ```
 
 ## Testing
