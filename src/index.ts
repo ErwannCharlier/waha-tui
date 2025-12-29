@@ -158,13 +158,17 @@ async function main() {
   // Set renderer context for imperative API usage
   setRenderer(renderer)
 
+  // Shutdown state to prevent duplicate cleanup
+  let isShuttingDown = false
+
   // Cleanup function to properly restore terminal state
-  let isCleanedUp = false
   const cleanup = () => {
-    if (isCleanedUp) return
-    isCleanedUp = true
+    if (isShuttingDown) return
+    isShuttingDown = true
 
     try {
+      debugLog("Shutdown", "Starting cleanup...")
+
       // Stop presence management
       stopPresenceManagement()
 
@@ -175,13 +179,18 @@ async function main() {
       if (renderer && typeof renderer.destroy === "function") {
         renderer.destroy()
       }
+
+      debugLog("Shutdown", "Cleanup completed")
     } catch (error) {
-      debugLog("App", `Error during cleanup: ${error}`)
+      debugLog("Shutdown", `Error during cleanup: ${error}`)
+      errorService.handle(error, { log: true, notify: false })
     }
   }
 
   // Register cleanup handlers for various exit scenarios
-  process.on("exit", cleanup)
+  process.on("exit", () => {
+    debugLog("Shutdown", "Process exit event")
+  })
   process.on("SIGINT", () => {
     cleanup()
     process.exit(0)
@@ -191,13 +200,21 @@ async function main() {
     process.exit(0)
   })
   process.on("uncaughtException", (error) => {
+    errorService.handle(error, {
+      log: true,
+      notify: true,
+      context: { type: "uncaughtException" },
+    })
     cleanup()
-    console.error("Uncaught exception:", error)
     process.exit(1)
   })
   process.on("unhandledRejection", (reason) => {
+    errorService.handle(reason, {
+      log: true,
+      notify: true,
+      context: { type: "unhandledRejection" },
+    })
     cleanup()
-    console.error("Unhandled rejection:", reason)
     process.exit(1)
   })
 
