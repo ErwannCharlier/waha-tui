@@ -46,5 +46,17 @@ jobs:
           ls -la dist/
 
       # Publish using OIDC authentication (no NPM_TOKEN needed)
+      # Prereleases are published with extracted tag (e.g., v1.0.0-dev.1 → --tag dev)
       - name: Publish to npm
-        run: npm publish --access public --no-git-checks
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          if [[ "$VERSION" == *"-"* ]]; then
+            # Extract tag name: 1.0.0-dev.1 → dev, 1.0.0-beta.2 → beta
+            PRERELEASE="${VERSION#*-}"  # dev.1 or beta.2
+            TAG="${PRERELEASE%%.*}"      # dev or beta
+            echo "Publishing prerelease version $VERSION with --tag $TAG"
+            npm publish --access public --no-git-checks --tag "$TAG"
+          else
+            echo "Publishing stable version $VERSION"
+            npm publish --access public --no-git-checks
+          fi
