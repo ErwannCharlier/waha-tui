@@ -191,6 +191,7 @@ async function main() {
   // Register cleanup handlers for various exit scenarios
   process.on("exit", () => {
     debugLog("Shutdown", "Process exit event")
+    cleanup()
   })
   process.on("SIGINT", () => {
     cleanup()
