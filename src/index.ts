@@ -154,9 +154,6 @@ async function main() {
 
   // Create renderer FIRST so we can use it for everything including config
   const renderer = await createCliRenderer({ exitOnCtrlC: true })
-  debugLog("Renderer", `Renderer created successfully, type: ${typeof renderer}`)
-  debugLog("Renderer", `Renderer has destroy method: ${typeof renderer.destroy === "function"}`)
-  debugLog("Renderer", `stdin.isTTY: ${process.stdin.isTTY}, isRaw: ${process.stdin.isRaw}`)
 
   // Set renderer context for imperative API usage
   setRenderer(renderer)
@@ -195,10 +192,12 @@ async function main() {
     process.exit(0)
   })
   process.on("SIGINT", () => {
+    debugLog("Shutdown", "SIGINT received")
     cleanup()
     process.exit(0)
   })
   process.on("SIGTERM", () => {
+    debugLog("Shutdown", "SIGTERM received")
     cleanup()
     process.exit(0)
   })
@@ -330,11 +329,6 @@ async function main() {
 
   // Initial render (force rebuild)
   renderApp(true)
-  debugLog("Renderer", "Initial render completed")
-  debugLog(
-    "Renderer",
-    `stdin.isTTY after render: ${process.stdin.isTTY}, isRaw: ${process.stdin.isRaw}`
-  )
 
   // Check for updates
   try {
@@ -358,10 +352,6 @@ async function main() {
   renderer.keyInput.on("keypress", async (key: KeyEvent) => {
     await handleKeyPress(key, { renderApp })
   })
-
-  debugLog("Main", "Main function completed, waiting for events...")
-  debugLog("Main", `stdin.isTTY at end: ${process.stdin.isTTY}, isRaw: ${process.stdin.isRaw}`)
-  debugLog("Main", `Event listeners: keyInput=${renderer.keyInput.listenerCount("keypress")}`)
 }
 
 main().catch((error) => {
