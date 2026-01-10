@@ -17,12 +17,12 @@ import {
   TextRenderable,
 } from "@opentui/core"
 
-import { loadChatDetails, sendMessage, sendTypingState } from "../client"
-import { Icons, WhatsAppTheme } from "../config/theme"
-import { TIME_MS } from "../constants"
-import { appState } from "../state/AppState"
-import { getRenderer } from "../state/RendererContext"
-import { debugLog } from "../utils/debug"
+import { loadChatDetails, sendMessage, sendTypingState } from "~/client"
+import { Icons, WhatsAppTheme } from "~/config/theme"
+import { TIME_MS } from "~/constants"
+import { appState } from "~/state/AppState"
+import { getRenderer } from "~/state/RendererContext"
+import { debugLog } from "~/utils/debug"
 import {
   formatLastSeen,
   getChatIdString,
@@ -31,14 +31,14 @@ import {
   isGroupChat,
   isSelfChat,
   truncate,
-} from "../utils/formatters"
+} from "~/utils/formatters"
 import {
   DaySeparator,
   formatDateSeparator,
   getSenderColor,
   getSenderInfo,
   renderMessage,
-} from "./conversation"
+} from "~/views/conversation"
 
 // Cache for conversation scroll box and input
 let conversationScrollBox: ScrollBoxRenderable | null = null

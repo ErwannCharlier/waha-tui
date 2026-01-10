@@ -6,7 +6,7 @@ import type { CliRenderer, KeyEvent } from "@opentui/core"
 
 import { createCliRenderer } from "@opentui/core"
 
-import type { WahaTuiConfig } from "./config/schema"
+import type { WahaTuiConfig } from "~/config/schema"
 import {
   fetchMyProfile,
   getClient,
@@ -16,29 +16,29 @@ import {
   loadSessions,
   stopPresenceManagement,
   testConnection,
-} from "./client"
-import { showUpdateModal } from "./components/Modal"
-import { errorToToast } from "./components/Toast"
-import { configExists, createDefaultConfig, loadConfig, saveConfig } from "./config/manager"
-import { DEFAULT_ENV, validateConfig } from "./config/schema"
-import { DEFAULTS, TIME_MS } from "./constants"
-import { executeContextMenuAction, handleKeyPress } from "./handlers"
-import { loadSavedSettings } from "./handlers/settingsHandler"
-import { createRenderApp } from "./router"
-import { errorService } from "./services/ErrorService"
-import { webSocketService } from "./services/WebSocketService"
-import { appState } from "./state/AppState"
-import { setRenderer } from "./state/RendererContext"
-import { debugLog, initDebug } from "./utils/debug"
-import { runMigrations } from "./utils/migrations"
-import { checkForUpdates } from "./utils/update-checker"
+} from "~/client"
+import { showUpdateModal } from "~/components/Modal"
+import { errorToToast } from "~/components/Toast"
+import { configExists, createDefaultConfig, loadConfig, saveConfig } from "~/config/manager"
+import { DEFAULT_ENV, validateConfig } from "~/config/schema"
+import { DEFAULTS, TIME_MS } from "~/constants"
+import { executeContextMenuAction, handleKeyPress } from "~/handlers"
+import { loadSavedSettings } from "~/handlers/settingsHandler"
+import { createRenderApp } from "~/router"
+import { errorService } from "~/services/ErrorService"
+import { webSocketService } from "~/services/WebSocketService"
+import { appState } from "~/state/AppState"
+import { setRenderer } from "~/state/RendererContext"
+import { debugLog, initDebug } from "~/utils/debug"
+import { runMigrations } from "~/utils/migrations"
+import { checkForUpdates } from "~/utils/update-checker"
 import {
   ConfigView,
   destroyConfigInputs,
   getApiKeyInputValue,
   getUrlInputValue,
-} from "./views/ConfigView"
-import { showQRCode } from "./views/QRCodeView"
+} from "~/views/ConfigView"
+import { showQRCode } from "~/views/QRCodeView"
 
 /**
  * Run the configuration wizard using the TUI

@@ -3,11 +3,11 @@
  * Functions for chat-level operations (archive, unarchive, delete, mark unread)
  */
 
-import type { ChatId } from "../types"
-import { NetworkError } from "../services/Errors"
-import { errorService } from "../services/ErrorService"
-import { debugLog } from "../utils/debug"
-import { getClient, getSession } from "./core"
+import type { ChatId } from "~/types"
+import { getClient, getSession } from "~/client/core"
+import { NetworkError } from "~/services/Errors"
+import { errorService } from "~/services/ErrorService"
+import { debugLog } from "~/utils/debug"
 
 /**
  * Archive a chat.

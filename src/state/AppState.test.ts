@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, mock } from "bun:test"
 // So we'll create a fresh instance for testing using a factory pattern
 // First, let's test the exported appState singleton's behavior
 
-import { appState } from "./AppState"
+import { appState } from "~/state/AppState"
 
 describe("AppState", () => {
   beforeEach(() => {

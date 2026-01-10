@@ -10,15 +10,15 @@ import type {
   WAHAChatPresences,
 } from "@muhammedaksam/waha-node"
 
-import { TIME_MS } from "../constants"
-import { CacheKeys, cacheService } from "../services/CacheService"
-import { errorService } from "../services/ErrorService"
-import { RetryPresets, withRetry } from "../services/RetryService"
-import { appState } from "../state/AppState"
-import { debugLog } from "../utils/debug"
-import { isGroupChat } from "../utils/formatters"
-import { getClient, getSession } from "./core"
-import { prefetchMessagesForTopChats } from "./messageActions"
+import { getClient, getSession } from "~/client/core"
+import { prefetchMessagesForTopChats } from "~/client/messageActions"
+import { TIME_MS } from "~/constants"
+import { CacheKeys, cacheService } from "~/services/CacheService"
+import { errorService } from "~/services/ErrorService"
+import { RetryPresets, withRetry } from "~/services/RetryService"
+import { appState } from "~/state/AppState"
+import { debugLog } from "~/utils/debug"
+import { isGroupChat } from "~/utils/formatters"
 
 // ============================================
 // Session Management

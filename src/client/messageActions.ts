@@ -5,15 +5,15 @@
 
 import type { WAMessage } from "@muhammedaksam/waha-node"
 
-import type { ChatId, MessageId, WAMessageExtended } from "../types"
-import { TIME_MS, TIME_S } from "../constants"
-import { NetworkError } from "../services/Errors"
-import { errorService } from "../services/ErrorService"
-import { RetryPresets, withRetry } from "../services/RetryService"
-import { appState } from "../state/AppState"
-import { debugLog } from "../utils/debug"
-import { getChatIdString } from "../utils/formatters"
-import { getClient, getSession } from "./core"
+import type { ChatId, MessageId, WAMessageExtended } from "~/types"
+import { getClient, getSession } from "~/client/core"
+import { TIME_MS, TIME_S } from "~/constants"
+import { NetworkError } from "~/services/Errors"
+import { errorService } from "~/services/ErrorService"
+import { RetryPresets, withRetry } from "~/services/RetryService"
+import { appState } from "~/state/AppState"
+import { debugLog } from "~/utils/debug"
+import { getChatIdString } from "~/utils/formatters"
 
 /**
  * Star or unstar a message.

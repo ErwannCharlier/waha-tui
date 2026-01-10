@@ -7,9 +7,9 @@ import type { ToasterOptions } from "@opentui-ui/toast"
 
 import { toast, TOAST_DURATION } from "@opentui-ui/toast"
 
-import type { AppError } from "../services/ErrorService"
-import { WDSColors, WhatsAppTheme } from "../config/theme"
-import { TIME_MS } from "../constants"
+import type { AppError } from "~/services/ErrorService"
+import { WDSColors, WhatsAppTheme } from "~/config/theme"
+import { TIME_MS } from "~/constants"
 
 /**
  * WhatsApp-themed toaster configuration

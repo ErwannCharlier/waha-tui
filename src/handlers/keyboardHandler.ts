@@ -6,7 +6,7 @@
 import type { ChatSummary } from "@muhammedaksam/waha-node"
 import type { KeyEvent } from "@opentui/core"
 
-import type { AppState } from "../state/AppState"
+import type { AppState } from "~/state/AppState"
 import {
   deleteSession,
   fetchMyProfile,
@@ -19,33 +19,33 @@ import {
   markActivity,
   startPresenceManagement,
   stopPresenceManagement,
-} from "../client"
-import { getSelectedMenuItem, handleContextMenuKey } from "../components/ContextMenu"
-import { handleLogoutConfirm } from "../components/Modal"
-import { saveSettings } from "../config/manager"
-import { executeContextMenuAction } from "../handlers"
-import { webSocketService } from "../services/WebSocketService"
-import { appState } from "../state/AppState"
-import { calculateChatListScrollOffset } from "../utils/chatListScroll"
-import { debugLog } from "../utils/debug"
-import { filterChats, isArchived } from "../utils/filterChats"
-import { getChatIdString } from "../utils/formatters"
-import { chatListManager } from "../views/ChatListManager"
-import { blurSearchInput, clearSearchInput, focusSearchInput } from "../views/ChatsView"
+} from "~/client"
+import { getSelectedMenuItem, handleContextMenuKey } from "~/components/ContextMenu"
+import { handleLogoutConfirm } from "~/components/Modal"
+import { saveSettings } from "~/config/manager"
+import { executeContextMenuAction } from "~/handlers"
+import { webSocketService } from "~/services/WebSocketService"
+import { appState } from "~/state/AppState"
+import { calculateChatListScrollOffset } from "~/utils/chatListScroll"
+import { debugLog } from "~/utils/debug"
+import { filterChats, isArchived } from "~/utils/filterChats"
+import { getChatIdString } from "~/utils/formatters"
+import { chatListManager } from "~/views/ChatListManager"
+import { blurSearchInput, clearSearchInput, focusSearchInput } from "~/views/ChatsView"
 import {
   blurMessageInput,
   destroyConversationScrollBox,
   focusMessageInput,
   scrollConversation,
-} from "../views/ConversationView"
+} from "~/views/ConversationView"
 import {
   handlePhoneBackspace,
   handlePhoneInput,
   submitPhoneNumber,
   toggleAuthMode,
-} from "../views/QRCodeView"
-import { createNewSession } from "../views/SessionCreate"
-import { getSettingsMenuItems } from "../views/SettingsView"
+} from "~/views/QRCodeView"
+import { createNewSession } from "~/views/SessionCreate"
+import { getSettingsMenuItems } from "~/views/SettingsView"
 
 /**
  * Context for keyboard handler operations

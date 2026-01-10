@@ -13,15 +13,15 @@ import {
   WAHAWebhookSessionStatus,
 } from "@muhammedaksam/waha-node"
 
-import type { WahaTuiConfig } from "../config/schema"
-import { loadChats } from "../client"
-import { TIME_MS } from "../constants"
-import { appState } from "../state/AppState"
-import { debugLog } from "../utils/debug"
-import { getContactName, isGroupChat, isStatusBroadcast, normalizeId } from "../utils/formatters"
-import { notifyNewMessage } from "../utils/notifications"
-import { WebSocketError } from "./Errors"
-import { errorService } from "./ErrorService"
+import type { WahaTuiConfig } from "~/config/schema"
+import { loadChats } from "~/client"
+import { TIME_MS } from "~/constants"
+import { WebSocketError } from "~/services/Errors"
+import { errorService } from "~/services/ErrorService"
+import { appState } from "~/state/AppState"
+import { debugLog } from "~/utils/debug"
+import { getContactName, isGroupChat, isStatusBroadcast, normalizeId } from "~/utils/formatters"
+import { notifyNewMessage } from "~/utils/notifications"
 
 // Standard WebSocket close codes
 const CLOSE_NORMAL = 1000

@@ -3,10 +3,10 @@
  * Functions for session presence and activity management
  */
 
-import { TIME_MS } from "../constants"
-import { appState } from "../state/AppState"
-import { debugLog } from "../utils/debug"
-import { getClient, getSession } from "./core"
+import { getClient, getSession } from "~/client/core"
+import { TIME_MS } from "~/constants"
+import { appState } from "~/state/AppState"
+import { debugLog } from "~/utils/debug"
 
 // State for presence management
 let lastActivityTime = Date.now()

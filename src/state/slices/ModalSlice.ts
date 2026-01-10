@@ -1,9 +1,9 @@
 import type { ChatSummary, WAMessage } from "@muhammedaksam/waha-node"
 
-import type { WAMessageExtended } from "../../types"
-import type { UpdateInfo } from "../../utils/update-checker"
-import { TIME_MS } from "../../constants"
-import { SliceActions, StateSlice } from "./types"
+import type { WAMessageExtended } from "~/types"
+import type { UpdateInfo } from "~/utils/update-checker"
+import { TIME_MS } from "~/constants"
+import { SliceActions, StateSlice } from "~/state/slices/types"
 
 // Context menu types
 export type ContextMenuType = "chat" | "message" | null

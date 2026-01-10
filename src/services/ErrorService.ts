@@ -3,8 +3,8 @@
  * Centralized error handling, classification, and reporting
  */
 
-import { debugLog } from "../utils/debug"
-import { BaseAppError } from "./Errors"
+import { BaseAppError } from "~/services/Errors"
+import { debugLog } from "~/utils/debug"
 
 /**
  * Error severity levels

@@ -5,10 +5,10 @@
 
 import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test"
 
-import { NetworkError } from "../services/Errors"
-import { errorService } from "../services/ErrorService"
-import { archiveChat, deleteChat, markChatUnread, unarchiveChat } from "./chatActions"
-import * as core from "./core"
+import { archiveChat, deleteChat, markChatUnread, unarchiveChat } from "~/client/chatActions"
+import * as core from "~/client/core"
+import { NetworkError } from "~/services/Errors"
+import { errorService } from "~/services/ErrorService"
 
 // Mock the core module functions
 const mockChatsController = {

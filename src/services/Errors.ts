@@ -1,4 +1,4 @@
-import type { AppError, ErrorCategory, ErrorSeverity } from "./ErrorService"
+import type { AppError, ErrorCategory, ErrorSeverity } from "~/services/ErrorService"
 
 /**
  * Base class for all custom application errors

@@ -1,8 +1,8 @@
 import type { WAMessage } from "@muhammedaksam/waha-node"
 
-import type { WAMessageExtended } from "../../types"
-import { debugLog } from "../../utils/debug"
-import { SliceActions, StateSlice } from "./types"
+import type { WAMessageExtended } from "~/types"
+import { SliceActions, StateSlice } from "~/state/slices/types"
+import { debugLog } from "~/utils/debug"
 
 export interface MessageState {
   messages: Map<string, WAMessageExtended[]>

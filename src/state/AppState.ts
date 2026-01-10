@@ -12,8 +12,6 @@ import type {
   WAMessage,
 } from "@muhammedaksam/waha-node"
 
-import type { WAMessageExtended } from "../types"
-import type { UpdateInfo } from "../utils/update-checker"
 import type {
   ActiveFilter,
   ActiveIcon,
@@ -35,10 +33,10 @@ import type {
   SettingsState,
   UIState,
   ViewType,
-} from "./slices"
-import { TIME_MS } from "../constants"
-import { getChatIdString } from "../utils/formatters"
-import { dismissUpdate } from "../utils/update-checker"
+} from "~/state/slices"
+import type { WAMessageExtended } from "~/types"
+import type { UpdateInfo } from "~/utils/update-checker"
+import { TIME_MS } from "~/constants"
 import {
   createAuthSlice,
   createChatSlice,
@@ -49,7 +47,9 @@ import {
   createSessionSlice,
   createSettingsSlice,
   createUISlice,
-} from "./slices"
+} from "~/state/slices"
+import { getChatIdString } from "~/utils/formatters"
+import { dismissUpdate } from "~/utils/update-checker"
 
 // Re-export types for backward compatibility
 export type {

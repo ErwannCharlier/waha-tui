@@ -16,11 +16,11 @@ import {
   underline,
 } from "@opentui/core"
 
-import type { UpdateInfo } from "../utils/update-checker"
-import { logoutSession } from "../client"
-import { WDSColors, WhatsAppTheme } from "../config/theme"
-import { getDialogManager } from "../router"
-import { appState } from "../state/AppState"
+import type { UpdateInfo } from "~/utils/update-checker"
+import { logoutSession } from "~/client"
+import { WDSColors, WhatsAppTheme } from "~/config/theme"
+import { getDialogManager } from "~/router"
+import { appState } from "~/state/AppState"
 
 /**
  * WhatsApp-themed dialog container configuration

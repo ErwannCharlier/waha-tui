@@ -7,8 +7,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
-import { VersionInfo } from "../config/version"
-import { TIME_MS } from "../constants"
+import { VersionInfo } from "~/config/version"
+import { TIME_MS } from "~/constants"
 
 const GITHUB_REPO = "muhammedaksam/waha-tui"
 

@@ -1,8 +1,8 @@
 import type { ChatSummary, GroupParticipant, WAHAChatPresences } from "@muhammedaksam/waha-node"
 
-import { debugLog } from "../../utils/debug"
-import { normalizeId } from "../../utils/formatters"
-import { SliceActions, StateSlice } from "./types"
+import { SliceActions, StateSlice } from "~/state/slices/types"
+import { debugLog } from "~/utils/debug"
+import { normalizeId } from "~/utils/formatters"
 
 export interface ChatState {
   currentChatId: string | null

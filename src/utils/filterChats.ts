@@ -5,8 +5,8 @@
 
 import type { ChatSummary } from "@muhammedaksam/waha-node"
 
-import type { ActiveFilter } from "../state/AppState"
-import { getChatIdString, isGroupChat } from "./formatters"
+import type { ActiveFilter } from "~/state/AppState"
+import { getChatIdString, isGroupChat } from "~/utils/formatters"
 
 interface ExtendedChat {
   archived?: boolean

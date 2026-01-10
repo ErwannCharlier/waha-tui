@@ -3,10 +3,10 @@
  * Detects and manages network connectivity state
  */
 
-import { successToast, warningToast } from "../components/Toast"
-import { TIME_MS } from "../constants"
-import { appState } from "../state/AppState"
-import { debugLog } from "../utils/debug"
+import { successToast, warningToast } from "~/components/Toast"
+import { TIME_MS } from "~/constants"
+import { appState } from "~/state/AppState"
+import { debugLog } from "~/utils/debug"
 
 /**
  * Network connectivity state

@@ -3,8 +3,8 @@
  * Simple in-memory cache with TTL support for API responses
  */
 
-import { TIME_MS } from "../constants"
-import { debugLog } from "../utils/debug"
+import { TIME_MS } from "~/constants"
+import { debugLog } from "~/utils/debug"
 
 /**
  * Cache entry with expiration time
