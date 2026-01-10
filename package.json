@@ -1,14 +1,13 @@
 {
   "name": "@muhammedaksam/waha-tui",
-  "version": "1.5.0-dev.17",
+  "version": "1.5.0-dev.18",
   "description": "TUI client for WhatsApp using WAHA (WhatsApp HTTP API) - manage chats, send messages, and more from your terminal",
-  "module": "src/index.ts",
   "type": "module",
   "bin": {
-    "waha-tui": "./src/index.ts"
+    "waha-tui": "./dist/index.js"
   },
   "files": [
-    "src"
+    "dist"
   ],
   "author": "Muhammed Mustafa AKŞAM <info@muhammedaksam.com.tr> (https://github.com/muhammedaksam)",
   "license": "MIT",
@@ -33,7 +32,8 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "dev:debug": "bun dev --debug",
-    "build": "bun build src/index.ts --outdir dist --target bun",
+    "build": "bun build src/index.ts --outdir dist --target bun --external '@opentui/*' --external 'node-notifier' --external 'qrcode'",
+    "prepublishOnly": "bun run build",
     "typecheck": "bun x tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint src/ --fix",
