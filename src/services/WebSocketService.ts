@@ -19,6 +19,8 @@ import { appState } from "../state/AppState"
 import { debugLog } from "../utils/debug"
 import { getContactName, isGroupChat, isStatusBroadcast, normalizeId } from "../utils/formatters"
 import { notifyNewMessage } from "../utils/notifications"
+import { WebSocketError } from "./Errors"
+import { errorService } from "./ErrorService"
 
 // Standard WebSocket close codes
 const CLOSE_NORMAL = 1000
@@ -118,11 +120,18 @@ export class WebSocketService {
 
       // Store bound handlers for cleanup
       this.ws.onopen = this.handleOpen.bind(this)
-      this.ws.onmessage = this.handleMessage.bind(this)
+      this.ws.onmessage = this.handleMessageWithDebounce.bind(this)
       this.ws.onclose = this.handleClose.bind(this)
       this.ws.onerror = this.handleError.bind(this)
     } catch (error) {
-      debugLog("WebSocket", `Connection error: ${error}`)
+      errorService.handle(
+        new WebSocketError(
+          "Connection failed",
+          { url: this.config?.wahaUrl },
+          error instanceof Error ? error : undefined
+        ),
+        { context: { component: "WebSocketService" } }
+      )
       this.handleClose({ code: 0, reason: "Connection failed", wasClean: false } as CloseEvent)
     } finally {
       this.isConnecting = false
@@ -132,21 +141,23 @@ export class WebSocketService {
   public disconnect() {
     this.shouldKeyReconnect = false
 
-    // Clear reconnect timer
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer)
+      this.debounceTimer = null
+    }
+    this.pendingEvents = []
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
     }
 
-    // Clean up WebSocket connection
     if (this.ws) {
-      // Clear event handlers before closing
       this.ws.onopen = null
       this.ws.onmessage = null
       this.ws.onclose = null
       this.ws.onerror = null
 
-      // Close connection
       this.ws.close(CLOSE_NORMAL, "App closed")
       this.ws = null
     }
@@ -161,14 +172,57 @@ export class WebSocketService {
   private handleMessage(event: MessageEvent) {
     try {
       const data = JSON.parse(event.data as string) as WahaEvent
+
       this.processEvent(data).catch((error) => {
-        debugLog(
-          "WebSocket",
-          `Error processing event: ${error instanceof Error ? error.stack : error}`
-        )
+        errorService.handle(error, {
+          context: { component: "WebSocketService", action: "processEvent" },
+        })
       })
     } catch (error) {
-      debugLog("WebSocket", `Failed to parse message: ${error}`)
+      errorService.handle(
+        new WebSocketError(
+          "Failed to parse WebSocket message",
+          undefined,
+          error instanceof Error ? error : undefined
+        ),
+        { context: { component: "WebSocketService" } }
+      )
+    }
+  }
+
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null
+  private pendingEvents: WahaEvent[] = []
+
+  private handleMessageWithDebounce(event: MessageEvent) {
+    try {
+      const data = JSON.parse(event.data as string) as WahaEvent
+
+      this.pendingEvents.push(data)
+
+      if (this.debounceTimer) {
+        clearTimeout(this.debounceTimer)
+      }
+
+      this.debounceTimer = setTimeout(() => {
+        for (const evt of this.pendingEvents) {
+          this.processEvent(evt).catch((error) => {
+            errorService.handle(error, {
+              context: { component: "WebSocketService", action: "processDebouncedEvent" },
+            })
+          })
+        }
+        this.pendingEvents = []
+        this.debounceTimer = null
+      }, 500)
+    } catch (error) {
+      errorService.handle(
+        new WebSocketError(
+          "Failed to parse WebSocket message",
+          undefined,
+          error instanceof Error ? error : undefined
+        ),
+        { context: { component: "WebSocketService" } }
+      )
     }
   }
 
@@ -310,7 +364,9 @@ export class WebSocketService {
           const groupName = isGroup ? messageData?.chat?.name : undefined
           await notifyNewMessage(senderName, messageBody, isGroup, groupName, isStatus)
         } catch (error) {
-          debugLog("Notifications", `Error processing notification: ${error}`)
+          errorService.handle(error, {
+            context: { component: "WebSocketService", action: "processNotification" },
+          })
         }
       }
     }
