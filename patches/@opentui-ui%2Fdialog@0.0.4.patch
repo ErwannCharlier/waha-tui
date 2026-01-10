@@ -1,0 +1,31 @@
+diff --git a/node_modules/@opentui-ui/dialog/.bun-tag-f278a98b84816b0b b/.bun-tag-f278a98b84816b0b
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/package.json b/package.json
+index 0747f21c6c9ff728f3afeb28d1529dd7dd2aabb2..26a4b45c9836865ea0580834f2d0baccf9e3adbf 100644
+--- a/package.json
++++ b/package.json
+@@ -50,11 +50,13 @@
+     "build": "tsdown",
+     "clean": "rm -rf dist"
+   },
++  "dependencies": {
++    "@opentui/core": "^0.1.72",
++    "@opentui-ui/utils": "^0.0.1"
++  },
+   "devDependencies": {
+-    "@opentui/core": "^0.1.65",
+     "@opentui/react": "^0.1.65",
+     "@opentui/solid": "^0.1.65",
+-    "@opentui-ui/utils": "workspace:^",
+     "@types/bun": "latest",
+     "@types/react": "^19",
+     "react": "^19.2.3",
+@@ -66,7 +68,6 @@
+     "solid-js": "1.9.9"
+   },
+   "peerDependencies": {
+-    "@opentui/core": "^0.1.65",
+     "@opentui/react": "^0.1.65",
+     "@opentui/solid": "^0.1.65"
+   },

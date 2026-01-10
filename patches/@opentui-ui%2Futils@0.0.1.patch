@@ -1,0 +1,22 @@
+diff --git a/package.json b/package.json
+index 02fa52207e7eaf9eef61fd1acb68353ca03609d3..67cfcb05733021810a6ef1e09780b7e321f640f1 100644
+--- a/package.json
++++ b/package.json
+@@ -54,13 +54,13 @@
+     "build": "tsdown",
+     "clean": "rm -rf dist"
+   },
++  "dependencies": {
++    "@opentui/core": "^0.1.72"
++  },
+   "devDependencies": {
+-    "@opentui/core": "^0.1.63",
++    "@opentui/core": "^0.1.72",
+     "@types/bun": "latest",
+     "tsdown": "^0.18.2",
+     "typescript": "^5"
+-  },
+-  "peerDependencies": {
+-    "@opentui/core": "^0.1.63"
+   }
+ }
