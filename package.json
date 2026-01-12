@@ -72,7 +72,7 @@
   },
   "dependencies": {
     "@muhammedaksam/waha-node": "^2026.1.1",
-    "@opentui-ui/dialog": "^0.0.4",
+    "@opentui-ui/dialog": "^0.1.2",
     "@opentui-ui/toast": "^0.0.5",
     "@opentui/core": "^0.1.72",
     "node-notifier": "^10.0.1",
