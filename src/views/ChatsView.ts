@@ -137,7 +137,6 @@ export function ChatsView() {
           searchInputComponent = new InputRenderable(renderer, {
             id: "chat-search-input",
             width: "auto",
-            height: 1,
             placeholder: "Search or start a new chat",
             backgroundColor: WhatsAppTheme.inputBg,
             focusedBackgroundColor: WhatsAppTheme.inputBg,
