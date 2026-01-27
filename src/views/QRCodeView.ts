@@ -14,8 +14,7 @@ import { Icons, WhatsAppTheme } from "~/config/theme"
 import { TIME_MS } from "~/constants"
 import { appState } from "~/state/AppState"
 import { debugLog } from "~/utils/debug"
-import { requestPairingCode } from "~/utils/pairing"
-import { getQRCode } from "~/utils/qr"
+import { getQRCode, requestPairingCode } from "~/utils/pairing"
 import { createNewSession } from "~/views/SessionCreate"
 
 // Module-level intervals for QR refresh and status checking

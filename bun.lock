@@ -5,7 +5,7 @@
     "": {
       "name": "@muhammedaksam/waha-tui",
       "dependencies": {
-        "@muhammedaksam/waha-node": "^2026.1.4",
+        "@muhammedaksam/waha-node": "2026.1.4-dev.2",
         "@opentui-ui/dialog": "^0.1.2",
         "@opentui-ui/toast": "^0.0.5",
         "@opentui/core": "^0.1.75",
@@ -181,7 +181,7 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@muhammedaksam/waha-node": ["@muhammedaksam/waha-node@2026.1.4", "", { "dependencies": { "axios": "^1.13.2" } }, "sha512-/6clWqKv0UhDg0D+D0lZryIzNCGeYAplsjIZkAnOIQBI1RmlyklqFgcAsFZK7zDcn7U5Udq50UBIB51Pe6t0Mg=="],
+    "@muhammedaksam/waha-node": ["@muhammedaksam/waha-node@2026.1.4-dev.2", "", { "dependencies": { "axios": "^1.13.2" } }, "sha512-v7s8kYOEzcvtV3px4ICMWwT786fj+kfc2Caj6SuiBCYF4wPMfYF6KUBTkPItdFSm+Qx2hU3q3Arv4dju3a9C2A=="],
 
     "@opentui-ui/dialog": ["@opentui-ui/dialog@0.1.2", "", { "peerDependencies": { "@opentui/core": "^0.1.69", "@opentui/react": "^0.1.69", "@opentui/solid": "^0.1.69" }, "optionalPeers": ["@opentui/react", "@opentui/solid"] }, "sha512-EZ4FG5u5sxU75+6pcsJsLzsD5JqO05So/1ceZUKUu7nxZ9IF7gcZEi+MU4HnYC9cb2Q7w6hM9y3/iW+jE1C53w=="],
 
