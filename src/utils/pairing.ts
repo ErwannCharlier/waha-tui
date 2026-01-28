@@ -1,10 +1,35 @@
 /**
- * Phone Number Pairing utilities
- * Alternative authentication method using pairing codes
+ * Phone Number Pairing and QR Code utilities
+ * Alternative authentication methods for WhatsApp sessions
  */
 
 import { getClient } from "~/client"
 import { debugLog } from "~/utils/debug"
+
+/**
+ * Get QR code as raw data from WAHA API
+ */
+export async function getQRCode(sessionName: string): Promise<string | null> {
+  try {
+    debugLog("QR", `Fetching QR code for session: ${sessionName}`)
+    const client = getClient()
+
+    const { data } = await client.pairing.authControllerGetQr(sessionName, {
+      format: "raw",
+    })
+
+    if (typeof data === "object" && data && "value" in data) {
+      debugLog("QR", `QR code fetched successfully for ${sessionName}`)
+      return (data as { value: string }).value
+    }
+
+    debugLog("QR", `No QR value in response for ${sessionName}`)
+    return null
+  } catch (error) {
+    debugLog("QR", `Failed to fetch QR code: ${error}`)
+    return null
+  }
+}
 
 export interface PairingResult {
   success: boolean
@@ -38,7 +63,7 @@ export async function requestPairingCode(
     debugLog("Pairing", `Requesting code for: ${cleanNumber}`)
     const client = getClient()
 
-    const { data } = await client.auth.authControllerRequestCode(sessionName, {
+    const { data } = await client.pairing.authControllerRequestCode(sessionName, {
       phoneNumber: cleanNumber,
       method: undefined, // undefined = web pairing (not SMS/voice)
     })
