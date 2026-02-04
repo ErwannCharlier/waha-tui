@@ -40,6 +40,7 @@ interface ChatRowData {
   avatarText: TextRenderable
   nameText: TextRenderable
   timeText: TextRenderable
+  unreadBadge: TextRenderable | null
   chatInfo: BoxRenderable
   messageRow: BoxRenderable
   messageLeftGroup: BoxRenderable
@@ -322,6 +323,20 @@ class ChatListManager {
     })
     timeContainer.add(timeText)
 
+    let unreadBadge: TextRenderable | null = null
+    if (chat.unreadCount && chat.unreadCount > 0) {
+      unreadBadge = new TextRenderable(renderer, {
+        content: ` ${chat.unreadCount} `,
+        fg: WhatsAppTheme.white,
+        bg: WhatsAppTheme.green,
+        attributes: TextAttributes.BOLD,
+      })
+      timeContainer.add(unreadBadge)
+    }
+
+    nameRow.add(timeContainer)
+    chatInfo.add(nameRow)
+
     nameRow.add(timeContainer)
     chatInfo.add(nameRow)
 
@@ -394,6 +409,7 @@ class ChatListManager {
       avatarText,
       nameText,
       timeText,
+      unreadBadge,
       chatInfo,
       messageRow,
       messageLeftGroup,
@@ -449,6 +465,20 @@ class ChatListManager {
       const isTyping = appState.isChatTyping(chatIdStr)
       rowData.messageText.content = isTyping ? "typing..." : truncate(lastMessageText, 50)
       rowData.messageText.fg = isTyping ? WhatsAppTheme.green : WhatsAppTheme.textSecondary
+
+      // 3.5. Update unread badge
+      if (chat.unreadCount && chat.unreadCount > 0) {
+        if (rowData.unreadBadge) {
+          // Update existing badge
+          rowData.unreadBadge.content = ` ${chat.unreadCount} `
+        }
+      } else {
+        // Remove badge if no unread messages
+        if (rowData.unreadBadge) {
+          rowData.unreadBadge.destroy()
+          rowData.unreadBadge = null
+        }
+      }
 
       // 4. Update Ack Status
       this.updateAckStatus(rowData, preview, this.renderer!)
