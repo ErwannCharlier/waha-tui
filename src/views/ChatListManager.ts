@@ -250,6 +250,13 @@ class ChatListManager {
             // Left-click (button 0) opens chat
             debugLog("ChatListManager", `Clicked chat: ${chatRef.name || chatId}`)
 
+            // Remove unread badge immediately on click
+            const rowData = this.chatRows.get(chatIndex)
+            if (rowData?.unreadBadge) {
+              rowData.unreadBadge.destroy()
+              rowData.unreadBadge = null
+            }
+
             // Destroy old scroll box before loading new messages
             destroyConversationScrollBox()
 
@@ -327,8 +334,9 @@ class ChatListManager {
 
     let unreadBadge: TextRenderable | null = null
     if (chat.unreadCount && chat.unreadCount > 0) {
+      const count = chat.unreadCount > 20 ? "20+" : `${chat.unreadCount}`
       unreadBadge = new TextRenderable(renderer, {
-        content: ` ${chat.unreadCount} `,
+        content: ` ${count} `,
         fg: WhatsAppTheme.white,
         bg: WhatsAppTheme.green,
         attributes: TextAttributes.BOLD,
@@ -470,9 +478,10 @@ class ChatListManager {
 
       // 3.5. Update unread badge
       if (chat.unreadCount && chat.unreadCount > 0) {
+        const count = chat.unreadCount > 20 ? "20+" : `${chat.unreadCount}`
         if (rowData.unreadBadge) {
           // Update existing badge
-          rowData.unreadBadge.content = ` ${chat.unreadCount} `
+          rowData.unreadBadge.content = ` ${count} `
         }
       } else {
         // Remove badge if no unread messages
