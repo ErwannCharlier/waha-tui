@@ -17,6 +17,7 @@ import {
 import type { AppState } from "~/state/AppState"
 import type { MessagePreview } from "~/utils/formatters"
 import { loadContacts, loadMessages, startPresenceManagement } from "~/client"
+import { markChatRead } from "~/client/chatActions"
 import { Icons, WhatsAppTheme } from "~/config/theme"
 import { appState } from "~/state/AppState"
 import { ROW_HEIGHT } from "~/utils/chatListScroll"
@@ -261,6 +262,7 @@ class ChatListManager {
             loadMessages(chatId)
             // Start presence management (online/offline + re-subscribe)
             startPresenceManagement(chatId)
+            markChatRead(chatId)
           }
         }
       },
