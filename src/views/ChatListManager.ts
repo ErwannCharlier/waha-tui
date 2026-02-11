@@ -17,6 +17,7 @@ import {
 import type { AppState } from "~/state/AppState"
 import type { MessagePreview } from "~/utils/formatters"
 import { loadContacts, loadMessages, startPresenceManagement } from "~/client"
+import { markChatRead } from "~/client/chatActions"
 import { Icons, WhatsAppTheme } from "~/config/theme"
 import { appState } from "~/state/AppState"
 import { ROW_HEIGHT } from "~/utils/chatListScroll"
@@ -40,6 +41,7 @@ interface ChatRowData {
   avatarText: TextRenderable
   nameText: TextRenderable
   timeText: TextRenderable
+  unreadBadge: TextRenderable | null
   chatInfo: BoxRenderable
   messageRow: BoxRenderable
   messageLeftGroup: BoxRenderable
@@ -248,6 +250,13 @@ class ChatListManager {
             // Left-click (button 0) opens chat
             debugLog("ChatListManager", `Clicked chat: ${chatRef.name || chatId}`)
 
+            // Remove unread badge immediately on click
+            const rowData = this.chatRows.get(chatIndex)
+            if (rowData?.unreadBadge) {
+              rowData.unreadBadge.destroy()
+              rowData.unreadBadge = null
+            }
+
             // Destroy old scroll box before loading new messages
             destroyConversationScrollBox()
 
@@ -260,6 +269,7 @@ class ChatListManager {
             loadMessages(chatId)
             // Start presence management (online/offline + re-subscribe)
             startPresenceManagement(chatId)
+            markChatRead(chatId)
           }
         }
       },
@@ -321,6 +331,21 @@ class ChatListManager {
       fg: WhatsAppTheme.textTertiary,
     })
     timeContainer.add(timeText)
+
+    let unreadBadge: TextRenderable | null = null
+    if (chat.unreadCount && chat.unreadCount > 0) {
+      const count = chat.unreadCount > 20 ? "20+" : `${chat.unreadCount}`
+      unreadBadge = new TextRenderable(renderer, {
+        content: ` ${count} `,
+        fg: WhatsAppTheme.white,
+        bg: WhatsAppTheme.green,
+        attributes: TextAttributes.BOLD,
+      })
+      timeContainer.add(unreadBadge)
+    }
+
+    nameRow.add(timeContainer)
+    chatInfo.add(nameRow)
 
     nameRow.add(timeContainer)
     chatInfo.add(nameRow)
@@ -394,6 +419,7 @@ class ChatListManager {
       avatarText,
       nameText,
       timeText,
+      unreadBadge,
       chatInfo,
       messageRow,
       messageLeftGroup,
@@ -449,6 +475,21 @@ class ChatListManager {
       const isTyping = appState.isChatTyping(chatIdStr)
       rowData.messageText.content = isTyping ? "typing..." : truncate(lastMessageText, 50)
       rowData.messageText.fg = isTyping ? WhatsAppTheme.green : WhatsAppTheme.textSecondary
+
+      // 3.5. Update unread badge
+      if (chat.unreadCount && chat.unreadCount > 0) {
+        const count = chat.unreadCount > 20 ? "20+" : `${chat.unreadCount}`
+        if (rowData.unreadBadge) {
+          // Update existing badge
+          rowData.unreadBadge.content = ` ${count} `
+        }
+      } else {
+        // Remove badge if no unread messages
+        if (rowData.unreadBadge) {
+          rowData.unreadBadge.destroy()
+          rowData.unreadBadge = null
+        }
+      }
 
       // 4. Update Ack Status
       this.updateAckStatus(rowData, preview, this.renderer!)
