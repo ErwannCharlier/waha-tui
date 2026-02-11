@@ -64,8 +64,8 @@ export function getSenderInfo(
   chatId?: string
 ): { senderId: string; senderName: string; senderColor: string } {
   const isFromMe = message.fromMe
-  let senderName = ""
-  let senderId = ""
+  let senderName: string
+  let senderId: string
 
   if (isFromMe) {
     senderName = "You"
@@ -78,9 +78,6 @@ export function getSenderInfo(
 
     // Determine name
     if (isGroupChat && message.from) {
-      const fromParts = message.from.split("@")
-      senderName = fromParts[0] // Fallback
-
       // Priority 1: Check contacts cache
       const cachedName = appState.getContactName(senderId)
       if (cachedName) {
@@ -93,9 +90,9 @@ export function getSenderInfo(
         } else if (msgData?.pushName) {
           senderName = msgData.pushName
         } else {
-          // Priority 3: Participant ID parts
-          const participantParts = senderId.split("@")
-          senderName = participantParts[0]
+          // Priority 3: Participant ID, fallback to from
+          const fallbackParts = (message.participant || message.from || "").split("@")
+          senderName = fallbackParts[0]
         }
       }
     } else {
