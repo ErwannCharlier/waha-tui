@@ -59,7 +59,8 @@ export class WebSocketService {
     try {
       // Construct WebSocket URL
       // Use config.wahaUrl but replace http/https with ws/wss
-      let wsUrl = this.config.wahaUrl.replace(/^http/, "ws")
+      let wsUrl = this.config.wahaUrl.replace(/^http/, "ws").replace(/\/+$/, "")
+      wsUrl = `${wsUrl}/ws`
       if (!wsUrl.startsWith("ws")) {
         // Fallback if url doesn't start with http/ws (unlikely but safe)
         wsUrl = `ws://${wsUrl}`
